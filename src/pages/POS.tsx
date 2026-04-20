@@ -189,7 +189,9 @@ export default function POS() {
   const holdSale = async () => {
     if (!cart.length || !user) return;
     const { error } = await supabase.from("held_sales").insert({
-      cashier_id: user.id, label: `${cart.length} item(s)`, cart: cart as unknown as Record<string, unknown>[],
+      cashier_id: user.id,
+      label: `${cart.length} item(s)`,
+      cart: cart as unknown as never,
     });
     if (error) return toast.error(error.message);
     setCart([]); setSaleDiscount(""); setTendered("");
