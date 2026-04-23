@@ -481,6 +481,13 @@ export default function POS() {
 
       {/* ===== Receipt ===== */}
       <ReceiptDialog data={receipt} onClose={() => setReceipt(null)} />
+
+      {/* ===== Camera barcode scanner ===== */}
+      <BarcodeScanner
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        onDetected={handleScanned}
+      />
     </div>
   );
 }
