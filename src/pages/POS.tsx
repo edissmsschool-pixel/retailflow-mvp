@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { formatNaira, parseKoboInput, nairaToKobo } from "@/lib/money";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -401,7 +401,12 @@ export default function POS() {
       {/* ===== Held sales dialog ===== */}
       <Dialog open={showHeld} onOpenChange={setShowHeld}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Held sales</DialogTitle>
+            <DialogDescription className="sr-only">
+              Recall or delete previously held carts.
+            </DialogDescription>
+          </DialogHeader>
           <div className="max-h-80 space-y-2 overflow-auto">
             {heldSales.data?.length === 0 && (
               <div className="py-6 text-center text-sm text-muted-foreground">No held sales.</div>
