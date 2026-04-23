@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { formatNaira, parseKoboInput, nairaToKobo } from "@/lib/money";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bookmark, BookmarkPlus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Bookmark, BookmarkPlus, ScanLine, Search, ShoppingCart, Trash2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { type ReceiptData } from "@/components/Receipt";
 import { ProductGrid } from "@/components/pos/ProductGrid";
@@ -19,6 +19,7 @@ import { CartList, type CartLine } from "@/components/pos/CartList";
 import { CartSummary } from "@/components/pos/CartSummary";
 import { PaymentDialog, type PaymentMethod } from "@/components/pos/PaymentDialog";
 import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
+import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { cn } from "@/lib/utils";
 
 type Product = Tables<"products">;
@@ -38,6 +39,7 @@ export default function POS() {
   const [showHeld, setShowHeld] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const openShift = useQuery({
     queryKey: ["open-shift", user?.id],
@@ -105,6 +107,31 @@ export default function POS() {
     const exact = products.data?.find((p) => p.sku === term || p.barcode === term);
     if (exact) { addProduct(exact); setQuery(""); searchRef.current?.focus(); return; }
     if (products.data?.length === 1) { addProduct(products.data[0]); setQuery(""); searchRef.current?.focus(); }
+  };
+
+  const handleScanned = async (code: string) => {
+    setShowScanner(false);
+    const term = code.trim();
+    if (!term) return;
+    // Try local cache first
+    let match = products.data?.find((p) => p.barcode === term || p.sku === term);
+    if (!match) {
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .or(`barcode.eq.${term},sku.eq.${term}`)
+        .limit(1)
+        .maybeSingle();
+      match = (data ?? undefined) as Product | undefined;
+    }
+    if (match) {
+      addProduct(match);
+      toast.success(`Added ${match.name}`);
+    } else {
+      toast.error(`No product for code ${term}`);
+      setQuery(term);
+    }
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -305,17 +332,28 @@ export default function POS() {
                 </Button>
               </div>
             </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                placeholder="Scan barcode or search by name / SKU…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                className="h-12 pl-10 text-base"
-                autoFocus
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchRef}
+                  placeholder="Scan barcode or search by name / SKU…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
+                  className="h-12 pl-10 text-base"
+                  autoFocus
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-12 shrink-0 p-0"
+                aria-label="Scan barcode with camera"
+                onClick={() => setShowScanner(true)}
+              >
+                <ScanLine className="h-5 w-5" />
+              </Button>
             </div>
             {/* Category chips */}
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -443,6 +481,13 @@ export default function POS() {
 
       {/* ===== Receipt ===== */}
       <ReceiptDialog data={receipt} onClose={() => setReceipt(null)} />
+
+      {/* ===== Camera barcode scanner ===== */}
+      <BarcodeScanner
+        open={showScanner}
+        onClose={() => setShowScanner(false)}
+        onDetected={handleScanned}
+      />
     </div>
   );
 }
