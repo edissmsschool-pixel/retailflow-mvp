@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { formatNaira, parseKoboInput, nairaToKobo } from "@/lib/money";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bookmark, BookmarkPlus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Bookmark, BookmarkPlus, ScanLine, Search, ShoppingCart, Trash2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { type ReceiptData } from "@/components/Receipt";
 import { ProductGrid } from "@/components/pos/ProductGrid";
@@ -19,6 +19,7 @@ import { CartList, type CartLine } from "@/components/pos/CartList";
 import { CartSummary } from "@/components/pos/CartSummary";
 import { PaymentDialog, type PaymentMethod } from "@/components/pos/PaymentDialog";
 import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
+import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { cn } from "@/lib/utils";
 
 type Product = Tables<"products">;
@@ -38,6 +39,7 @@ export default function POS() {
   const [showHeld, setShowHeld] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const openShift = useQuery({
     queryKey: ["open-shift", user?.id],
