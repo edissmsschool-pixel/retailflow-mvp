@@ -11,10 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatNaira, parseKoboInput, nairaToKobo } from "@/lib/money";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  Bookmark, BookmarkPlus, Search, ShoppingCart, Trash2, X,
-} from "lucide-react";
-import { Receipt as ReceiptType } from "lucide-react";
+import { Bookmark, BookmarkPlus, Search, ShoppingCart, Trash2 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { type ReceiptData } from "@/components/Receipt";
 import { ProductGrid } from "@/components/pos/ProductGrid";
