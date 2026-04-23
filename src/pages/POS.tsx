@@ -5,43 +5,43 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatNaira, parseKoboInput, nairaToKobo } from "@/lib/money";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Minus, Plus, Search, Trash2, X, BookmarkPlus, Bookmark, Printer } from "lucide-react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Receipt, type ReceiptData } from "@/components/Receipt";
+import {
+  Bookmark, BookmarkPlus, Search, ShoppingCart, Trash2, X,
+} from "lucide-react";
+import { Receipt as ReceiptType } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
+import { type ReceiptData } from "@/components/Receipt";
+import { ProductGrid } from "@/components/pos/ProductGrid";
+import { CartList, type CartLine } from "@/components/pos/CartList";
+import { CartSummary } from "@/components/pos/CartSummary";
+import { PaymentDialog, type PaymentMethod } from "@/components/pos/PaymentDialog";
+import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
+import { cn } from "@/lib/utils";
 
 type Product = Tables<"products">;
-
-interface CartLine {
-  product_id: string;
-  name: string;
-  sku: string;
-  unit_price_kobo: number;
-  quantity: number;
-  line_discount_kobo: number;
-  available: number;
-}
+type Category = Tables<"categories">;
 
 export default function POS() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const searchRef = useRef<HTMLInputElement>(null);
+
   const [query, setQuery] = useState("");
+  const [categoryId, setCategoryId] = useState<string | "all">("all");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [saleDiscount, setSaleDiscount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer" | "pos_card">("cash");
-  const [tendered, setTendered] = useState("");
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [showHeld, setShowHeld] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [showCart, setShowCart] = useState(false);
 
-  // Open shift query
   const openShift = useQuery({
     queryKey: ["open-shift", user?.id],
     enabled: !!user,
@@ -52,15 +52,22 @@ export default function POS() {
     },
   });
 
-  // Live product search
-  const products = useQuery({
-    queryKey: ["pos-products", query],
+  const categories = useQuery({
+    queryKey: ["pos-categories"],
     queryFn: async () => {
-      let q = supabase.from("products").select("*").eq("active", true).order("name").limit(40);
+      const { data } = await supabase.from("categories").select("*").order("name");
+      return (data ?? []) as Category[];
+    },
+  });
+
+  const products = useQuery({
+    queryKey: ["pos-products", query, categoryId],
+    queryFn: async () => {
+      let q = supabase.from("products").select("*").eq("active", true).order("name").limit(60);
+      if (categoryId !== "all") q = q.eq("category_id", categoryId);
       if (query.trim()) {
         const term = query.trim();
-        q = supabase.from("products").select("*").eq("active", true)
-          .or(`name.ilike.%${term}%,sku.ilike.%${term}%,barcode.ilike.%${term}%`).limit(40);
+        q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,barcode.ilike.%${term}%`);
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -77,7 +84,6 @@ export default function POS() {
     },
   });
 
-  // Auto-add by exact barcode/sku match on Enter
   const addProduct = (p: Product) => {
     setCart((c) => {
       const existing = c.find((l) => l.product_id === p.id);
@@ -96,7 +102,7 @@ export default function POS() {
     });
   };
 
-  const handleSearchEnter = async () => {
+  const handleSearchEnter = () => {
     if (!query.trim()) return;
     const term = query.trim();
     const exact = products.data?.find((p) => p.sku === term || p.barcode === term);
@@ -124,27 +130,27 @@ export default function POS() {
     setCart((c) => c.map((l) => l.product_id === id ? { ...l, line_discount_kobo: Math.max(0, kobo) } : l));
   };
   const removeLine = (id: string) => setCart((c) => c.filter((l) => l.product_id !== id));
+  const clearCart = () => { setCart([]); setSaleDiscount(""); };
 
   const subtotalKobo = useMemo(
     () => cart.reduce((s, l) => s + Math.max(0, l.unit_price_kobo * l.quantity - l.line_discount_kobo), 0),
     [cart]
   );
+  const itemCount = useMemo(() => cart.reduce((s, l) => s + l.quantity, 0), [cart]);
   const saleDiscountKobo = parseKoboInput(saleDiscount);
   const totalKobo = Math.max(0, subtotalKobo - saleDiscountKobo);
-  const tenderedKobo = paymentMethod === "cash" ? parseKoboInput(tendered) : totalKobo;
-  const changeKobo = Math.max(0, tenderedKobo - totalKobo);
 
-  const canCheckout = cart.length > 0 && (paymentMethod !== "cash" || tenderedKobo >= totalKobo);
-
-  const checkout = async () => {
-    if (!canCheckout || !user) return;
+  const checkout = async (method: PaymentMethod, tenderedKobo: number) => {
+    if (!user || !cart.length) return;
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("checkout", {
       body: {
-        items: cart.map((l) => ({ product_id: l.product_id, quantity: l.quantity, line_discount_kobo: l.line_discount_kobo })),
+        items: cart.map((l) => ({
+          product_id: l.product_id, quantity: l.quantity, line_discount_kobo: l.line_discount_kobo,
+        })),
         sale_discount_kobo: saleDiscountKobo,
-        payment_method: paymentMethod,
-        amount_tendered_kobo: paymentMethod === "cash" ? tenderedKobo : totalKobo,
+        payment_method: method,
+        amount_tendered_kobo: method === "cash" ? tenderedKobo : totalKobo,
         shift_id: openShift.data?.id ?? null,
       },
     });
@@ -155,7 +161,9 @@ export default function POS() {
     }
     const sale_id = (data as { sale_id: string }).sale_id;
     await loadReceipt(sale_id);
-    setCart([]); setSaleDiscount(""); setTendered("");
+    clearCart();
+    setShowPayment(false);
+    setShowCart(false);
     qc.invalidateQueries({ queryKey: ["pos-products"] });
     qc.invalidateQueries({ queryKey: ["dashboard-today"] });
     toast.success("Sale completed");
@@ -190,11 +198,11 @@ export default function POS() {
     if (!cart.length || !user) return;
     const { error } = await supabase.from("held_sales").insert({
       cashier_id: user.id,
-      label: `${cart.length} item(s)`,
+      label: `${cart.length} item(s) • ${formatNaira(totalKobo)}`,
       cart: cart as unknown as never,
     });
     if (error) return toast.error(error.message);
-    setCart([]); setSaleDiscount(""); setTendered("");
+    clearCart();
     qc.invalidateQueries({ queryKey: ["held-sales"] });
     toast.success("Sale held");
   };
@@ -219,22 +227,84 @@ export default function POS() {
 
   useEffect(() => { searchRef.current?.focus(); }, []);
 
+  // ---------- Cart panel (shared between desktop sidebar and mobile sheet) ----------
+  const CartPanel = (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="h-4 w-4 text-primary" />
+          <span className="font-display text-base font-semibold">Current Sale</span>
+          {itemCount > 0 && (
+            <Badge variant="secondary" className="tabular-nums">{itemCount}</Badge>
+          )}
+        </div>
+        {cart.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-muted-foreground hover:text-destructive"
+            onClick={clearCart}
+          >
+            <Trash2 className="mr-1 h-3 w-3" />Clear
+          </Button>
+        )}
+      </div>
+
+      <ScrollArea className="-mx-1 flex-1 px-1">
+        <CartList
+          cart={cart}
+          onUpdateQty={updateQty}
+          onSetQty={setQty}
+          onSetDiscount={setLineDiscount}
+          onRemove={removeLine}
+        />
+      </ScrollArea>
+
+      <CartSummary
+        itemCount={itemCount}
+        subtotalKobo={subtotalKobo}
+        saleDiscount={saleDiscount}
+        onSaleDiscountChange={setSaleDiscount}
+        totalKobo={totalKobo}
+      />
+
+      <div className="mt-3 flex gap-2">
+        <Button
+          variant="outline"
+          className="h-12 flex-1"
+          disabled={!cart.length}
+          onClick={holdSale}
+        >
+          <BookmarkPlus className="mr-1 h-4 w-4" />Hold
+        </Button>
+        <Button
+          className="h-12 flex-[2] text-base font-semibold shadow-elevated"
+          disabled={!cart.length}
+          onClick={() => setShowPayment(true)}
+        >
+          Checkout • {formatNaira(totalKobo)}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="container py-4">
-      <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
-        {/* Left: search + product grid */}
+    <div className="container max-w-screen-2xl px-3 py-3 sm:px-4 sm:py-4">
+      <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
+        {/* ===== Products column ===== */}
         <Card className="shadow-card">
           <CardHeader className="space-y-3 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">Point of Sale</CardTitle>
               <div className="flex items-center gap-2">
                 {openShift.data ? (
-                  <Badge variant="secondary">Shift open</Badge>
+                  <Badge variant="secondary" className="bg-success/10 text-success">Shift open</Badge>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={startShift}>Start shift</Button>
+                  <Button size="sm" variant="outline" className="h-9" onClick={startShift}>Start shift</Button>
                 )}
-                <Button size="sm" variant="outline" onClick={() => setShowHeld(true)}>
-                  <Bookmark className="mr-1 h-4 w-4" />Held ({heldSales.data?.length ?? 0})
+                <Button size="sm" variant="outline" className="h-9" onClick={() => setShowHeld(true)}>
+                  <Bookmark className="mr-1 h-4 w-4" />
+                  <span className="hidden sm:inline">Held</span> ({heldSales.data?.length ?? 0})
                 </Button>
               </div>
             </div>
@@ -250,137 +320,109 @@ export default function POS() {
                 autoFocus
               />
             </div>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[60vh]">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {products.data?.map((p) => (
-                  <button key={p.id} onClick={() => addProduct(p)}
-                    className="group flex flex-col items-start rounded-md border bg-card p-3 text-left text-sm shadow-card transition hover:border-primary hover:shadow-elevated disabled:opacity-50"
-                    disabled={p.stock_qty <= 0}>
-                    <div className="line-clamp-2 font-medium">{p.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">SKU {p.sku}</div>
-                    <div className="mt-2 flex w-full items-center justify-between">
-                      <span className="font-semibold tabular-nums text-primary">{formatNaira(p.sell_price_kobo)}</span>
-                      <Badge variant={p.stock_qty <= p.reorder_level ? "destructive" : "secondary"} className="text-[10px]">{p.stock_qty}</Badge>
-                    </div>
-                  </button>
-                ))}
-                {products.data?.length === 0 && (
-                  <div className="col-span-full p-6 text-center text-sm text-muted-foreground">No matching products.</div>
+            {/* Category chips */}
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                onClick={() => setCategoryId("all")}
+                className={cn(
+                  "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition active:scale-95",
+                  categoryId === "all"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card hover:border-primary/40"
                 )}
+              >
+                All
+              </button>
+              {categories.data?.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCategoryId(c.id)}
+                  className={cn(
+                    "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition active:scale-95",
+                    categoryId === c.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card hover:border-primary/40"
+                  )}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="pb-24 lg:pb-6">
+            <ScrollArea className="h-[calc(100vh-22rem)] lg:h-[calc(100vh-19rem)]">
+              <div className="pr-2">
+                <ProductGrid
+                  products={products.data}
+                  loading={products.isLoading}
+                  onAdd={addProduct}
+                />
               </div>
             </ScrollArea>
           </CardContent>
         </Card>
 
-        {/* Right: cart */}
-        <Card className="flex h-[calc(100vh-9rem)] flex-col shadow-card">
-          <CardHeader className="pb-3"><CardTitle className="text-base">Cart</CardTitle></CardHeader>
-          <CardContent className="flex flex-1 flex-col gap-3 overflow-hidden p-4 pt-0">
-            <ScrollArea className="-mx-4 flex-1 px-4">
-              {cart.length === 0 ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">Cart is empty. Scan or tap a product to add.</div>
-              ) : (
-                <div className="space-y-2">
-                  {cart.map((l) => (
-                    <div key={l.product_id} className="rounded-md border bg-card p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">{l.name}</div>
-                          <div className="text-xs text-muted-foreground">{formatNaira(l.unit_price_kobo)} • SKU {l.sku}</div>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeLine(l.product_id)}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex items-center rounded-md border">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateQty(l.product_id, -1)}><Minus className="h-3 w-3" /></Button>
-                          <Input type="number" value={l.quantity} min={1} max={l.available}
-                            onChange={(e) => setQty(l.product_id, parseInt(e.target.value) || 1)}
-                            className="h-8 w-14 border-0 text-center tabular-nums focus-visible:ring-0" />
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => updateQty(l.product_id, 1)}><Plus className="h-3 w-3" /></Button>
-                        </div>
-                        <Input placeholder="Discount ₦" inputMode="decimal"
-                          defaultValue={l.line_discount_kobo ? (l.line_discount_kobo / 100).toString() : ""}
-                          onBlur={(e) => setLineDiscount(l.product_id, parseKoboInput(e.target.value))}
-                          className="h-8 flex-1 text-sm" />
-                        <div className="w-24 text-right text-sm font-semibold tabular-nums">
-                          {formatNaira(Math.max(0, l.unit_price_kobo * l.quantity - l.line_discount_kobo))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            <div className="space-y-2 border-t pt-3">
-              <div className="flex items-center justify-between text-sm tabular-nums">
-                <span className="text-muted-foreground">Subtotal</span><span>{formatNaira(subtotalKobo)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-sm text-muted-foreground">Sale discount (₦)</span>
-                <Input value={saleDiscount} onChange={(e) => setSaleDiscount(e.target.value)} inputMode="decimal" className="h-8 w-32 text-right" />
-              </div>
-              <div className="flex items-center justify-between font-display text-xl font-bold tabular-nums">
-                <span>Total</span><span>{formatNaira(totalKobo)}</span>
-              </div>
-
-              <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as typeof paymentMethod)}>
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="cash">Cash</TabsTrigger>
-                  <TabsTrigger value="transfer">Transfer</TabsTrigger>
-                  <TabsTrigger value="pos_card">POS card</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
-              {paymentMethod === "cash" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Tendered (₦)</label>
-                    <Input value={tendered} onChange={(e) => setTendered(e.target.value)} inputMode="decimal" className="h-9" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Change</label>
-                    <div className="flex h-9 items-center rounded-md border bg-muted px-3 font-semibold tabular-nums">{formatNaira(changeKobo)}</div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <Button variant="outline" className="flex-1" disabled={!cart.length} onClick={holdSale}>
-                  <BookmarkPlus className="mr-1 h-4 w-4" />Hold
-                </Button>
-                <Button variant="outline" disabled={!cart.length} onClick={() => { setCart([]); setSaleDiscount(""); setTendered(""); }}>
-                  <X className="mr-1 h-4 w-4" />Clear
-                </Button>
-                <Button className="flex-1" size="lg" disabled={!canCheckout || busy} onClick={checkout}>
-                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Charge
-                </Button>
-              </div>
-            </div>
+        {/* ===== Desktop cart panel ===== */}
+        <Card className="hidden h-[calc(100vh-6rem)] flex-col shadow-card lg:flex">
+          <CardContent className="flex flex-1 flex-col overflow-hidden p-4">
+            {CartPanel}
           </CardContent>
         </Card>
       </div>
 
-      {/* Held sales dialog */}
+      {/* ===== Mobile sticky checkout bar ===== */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 shadow-elevated backdrop-blur lg:hidden">
+        <Sheet open={showCart} onOpenChange={setShowCart}>
+          <SheetTrigger asChild>
+            <Button
+              className="h-14 w-full justify-between text-base font-semibold shadow-elevated"
+              disabled={!cart.length && itemCount === 0}
+            >
+              <span className="flex items-center gap-2">
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {itemCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground">
+                      {itemCount}
+                    </span>
+                  )}
+                </div>
+                {cart.length === 0 ? "Cart empty" : "View Cart"}
+              </span>
+              <span className="tabular-nums">{formatNaira(totalKobo)}</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[92vh] rounded-t-2xl p-4">
+            <SheetHeader className="text-left">
+              <SheetTitle className="sr-only">Cart</SheetTitle>
+            </SheetHeader>
+            <div className="flex h-full flex-col pt-2">{CartPanel}</div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* ===== Held sales dialog ===== */}
       <Dialog open={showHeld} onOpenChange={setShowHeld}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
           <div className="max-h-80 space-y-2 overflow-auto">
-            {heldSales.data?.length === 0 && <div className="text-sm text-muted-foreground">No held sales.</div>}
+            {heldSales.data?.length === 0 && (
+              <div className="py-6 text-center text-sm text-muted-foreground">No held sales.</div>
+            )}
             {heldSales.data?.map((h) => (
-              <div key={h.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="text-sm font-medium">{h.label || "Held sale"}</div>
+              <div key={h.id} className="flex items-center justify-between rounded-xl border p-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{h.label || "Held sale"}</div>
                   <div className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()}</div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => recall(h.id, h.cart as unknown as CartLine[])}>Recall</Button>
-                  <Button size="sm" variant="ghost" onClick={async () => {
+                  <Button size="sm" className="h-9" onClick={() => recall(h.id, h.cart as unknown as CartLine[])}>Recall</Button>
+                  <Button size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={async () => {
                     await supabase.from("held_sales").delete().eq("id", h.id);
                     qc.invalidateQueries({ queryKey: ["held-sales"] });
-                  }}><Trash2 className="h-4 w-4" /></Button>
+                  }}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -388,17 +430,17 @@ export default function POS() {
         </DialogContent>
       </Dialog>
 
-      {/* Receipt dialog */}
-      <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Receipt</DialogTitle></DialogHeader>
-          {receipt && <Receipt data={receipt} />}
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setReceipt(null)}>Close</Button>
-            <Button onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ===== Payment ===== */}
+      <PaymentDialog
+        open={showPayment}
+        onOpenChange={setShowPayment}
+        totalKobo={totalKobo}
+        busy={busy}
+        onConfirm={checkout}
+      />
+
+      {/* ===== Receipt ===== */}
+      <ReceiptDialog data={receipt} onClose={() => setReceipt(null)} />
     </div>
   );
 }
