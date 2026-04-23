@@ -109,6 +109,31 @@ export default function POS() {
     if (products.data?.length === 1) { addProduct(products.data[0]); setQuery(""); searchRef.current?.focus(); }
   };
 
+  const handleScanned = async (code: string) => {
+    setShowScanner(false);
+    const term = code.trim();
+    if (!term) return;
+    // Try local cache first
+    let match = products.data?.find((p) => p.barcode === term || p.sku === term);
+    if (!match) {
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .or(`barcode.eq.${term},sku.eq.${term}`)
+        .limit(1)
+        .maybeSingle();
+      match = (data ?? undefined) as Product | undefined;
+    }
+    if (match) {
+      addProduct(match);
+      toast.success(`Added ${match.name}`);
+    } else {
+      toast.error(`No product for code ${term}`);
+      setQuery(term);
+    }
+  };
+
   const updateQty = (id: string, delta: number) => {
     setCart((c) => c.map((l) => {
       if (l.product_id !== id) return l;
@@ -307,17 +332,28 @@ export default function POS() {
                 </Button>
               </div>
             </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                placeholder="Scan barcode or search by name / SKU…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                className="h-12 pl-10 text-base"
-                autoFocus
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={searchRef}
+                  placeholder="Scan barcode or search by name / SKU…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
+                  className="h-12 pl-10 text-base"
+                  autoFocus
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-12 shrink-0 p-0"
+                aria-label="Scan barcode with camera"
+                onClick={() => setShowScanner(true)}
+              >
+                <ScanLine className="h-5 w-5" />
+              </Button>
             </div>
             {/* Category chips */}
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
