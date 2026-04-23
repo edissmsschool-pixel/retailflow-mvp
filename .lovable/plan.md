@@ -1,73 +1,33 @@
 
-## Retail Business Management — Core MVP
+## Fix receipt printing
 
-A production-ready retail POS + inventory + reporting system for a single store, in Naira (₦), no VAT, with manual payment recording. Built modular so accounting, CRM, and multi-store can be layered on later.
+The Print button currently calls `window.print()` from inside the Lovable preview iframe. Mobile browsers and sandboxed iframes block or ignore that call, so nothing happens. The PDF path also occasionally fails silently because errors from `html2canvas` are swallowed.
 
-### Tech & infrastructure
-- **Lovable Cloud** for auth, Postgres, RLS, edge functions
-- React + Tailwind + shadcn/ui, React Router, TanStack Query
-- Roles stored in a separate `user_roles` table with a `has_role()` security definer function (no role on profiles — prevents privilege escalation)
+### What I'll change
 
-### Roles (role-based access)
-- **Admin** — full access, user management, settings
-- **Manager** — products, inventory, reports, refunds
-- **Cashier** — POS only, view own sales
+**1. Replace `window.print()` with a dedicated print window**
+In `src/components/pos/ReceiptDialog.tsx`, build a self-contained HTML document containing just the receipt markup + inlined 80mm thermal CSS, open it via `window.open('', '_blank')`, write the HTML, then call `print()` on that new window once it loads. This works on desktop browsers, Android Chrome, iOS Safari, and inside the Lovable preview because the new tab is no longer sandboxed by the iframe. Falls back gracefully if popups are blocked (toast + offer PDF).
 
-### Modules
+**2. Make the print HTML self-sufficient**
+Embed the receipt as plain HTML/CSS (no Tailwind dependency, no theme tokens) so the print window renders identically on any device and any printer driver. Includes:
+- 80mm page size + zero margins via `@page`
+- Monospace font, dashed dividers, right-aligned tabular numbers
+- Auto-trigger `print()` then `close()` on the new window after the dialog is dismissed
 
-**1. Authentication & users**
-- Email/password sign-in, session persistence
-- Profiles table (name, phone) + `user_roles`
-- Admin-only user management page (create staff, assign role, deactivate)
+**3. Harden PDF download**
+- Surface real error messages instead of a generic toast
+- Force white background and explicit pixel width on the cloned node so html2canvas always has a stable layout
+- Lazy-load `html2canvas`/`jspdf` only on click (already the case)
 
-**2. Products & inventory**
-- Products: name, SKU, barcode, category, cost price, sell price, stock qty, reorder level, image
-- CRUD with search and category filter
-- Stock adjustments (manual increment/decrement with reason: restock, damage, correction) — every change written to `stock_movements` for an audit trail
-- Low-stock alerts on dashboard and a dedicated list
+**4. Fix the dialog accessibility warning**
+Add a `DialogDescription` (visually hidden) to the receipt dialog and the held-sales dialog to clear the Radix `aria-describedby` warning seen in the console.
 
-**3. Point of Sale (cashier screen)**
-- Fast keyboard- and barcode-scanner-friendly: focus stays on a search/scan input
-- Add by SKU/barcode/name → cart with qty, line total, remove
-- Discount per line and per sale (₦ amount or %)
-- Payment method selector: Cash / Transfer / POS-card
-- Cash tendered → auto-calculates change
-- Atomic checkout via edge function: validates stock, decrements inventory, writes `sale` + `sale_items` + `stock_movements` in one transaction
-- Printable A80/thermal-friendly receipt (store name, items, totals, payment, cashier, timestamp, sale #)
-- Hold/recall sale, void sale (manager+), refund full or partial (manager+ — restocks items)
+**5. Add a "Print" affordance that's reachable on mobile**
+The current 3-button footer fits, but on a 360px screen it's tight. Stack buttons vertically below `sm` breakpoint so each gets full width and the 48px touch target is preserved.
 
-**4. Sales history**
-- Searchable, filterable by date range, cashier, payment method, status (completed/refunded/voided)
-- Drill into a sale to view items and reprint receipt
+### Files touched
+- `src/components/pos/ReceiptDialog.tsx` — new print-window helper, better error handling, responsive footer, a11y description
+- `src/pages/POS.tsx` — add `DialogDescription` to held-sales dialog (small a11y cleanup)
 
-**5. Reports & dashboard**
-- Dashboard tiles: today's sales (₦), transactions, items sold, low-stock count
-- Charts: sales trend (last 14 days), top-selling products, sales by payment method
-- Reports page: daily / weekly / monthly summary, best & slow movers, sales-by-cashier
-- CSV export for any report
-
-**6. End-of-day close**
-- Cashier closes shift: enter counted cash; system shows expected vs counted, variance is logged
-- Manager can view all shift closings
-
-**7. Settings**
-- Store profile (name, address, phone, receipt footer, logo)
-- Currency fixed to ₦, no tax
-
-### UX & design
-- Clean, dense, retail-optimized layout (sidebar nav on desktop, bottom nav on mobile/tablet)
-- POS screen tuned for tablet/desktop with large touch targets
-- Light theme with a single brand accent; semantic tokens in `index.css` so theming stays consistent
-- Toast feedback for every action; optimistic UI on POS for speed
-
-### Reliability & accuracy
-- All money stored as integers (kobo) — no floating-point errors
-- Checkout, refund, void, and stock adjustments run server-side in edge functions inside a single transaction
-- Every inventory and financial change writes an immutable audit record
-- RLS on every table; cashiers can only read their own sales, managers/admins see all
-
-### Deliverables in this build
-Auth + roles, product/inventory management with stock movements, POS with checkout/receipt/refund/void, sales history, dashboard + reports + CSV export, end-of-day close, store settings, seeded demo data so it's testable on day one.
-
-### Out of scope for this MVP (clean extension points already in place)
-Multi-store, expenses & full P&L, CRM/loyalty, supplier/purchase orders, offline mode, online payment gateways. Each maps cleanly onto the existing schema when you're ready.
+### Verification
+After the change I'll open the preview at mobile width, run a sale, then click **Print** and **PDF** from the receipt dialog to confirm both work end-to-end.
