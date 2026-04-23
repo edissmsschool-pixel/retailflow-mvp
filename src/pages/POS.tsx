@@ -401,7 +401,12 @@ export default function POS() {
       {/* ===== Held sales dialog ===== */}
       <Dialog open={showHeld} onOpenChange={setShowHeld}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Held sales</DialogTitle>
+            <DialogDescription className="sr-only">
+              Recall or delete previously held carts.
+            </DialogDescription>
+          </DialogHeader>
           <div className="max-h-80 space-y-2 overflow-auto">
             {heldSales.data?.length === 0 && (
               <div className="py-6 text-center text-sm text-muted-foreground">No held sales.</div>
