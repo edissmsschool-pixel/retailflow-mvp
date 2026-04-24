@@ -94,43 +94,53 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="container py-6">
+    <div className="container px-3 py-6 sm:px-6 sm:py-8">
       <PageHeader title="Dashboard" description={`Today, ${fmtDate(new Date())}`} />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Revenue today" value={formatNaira(today.data?.revenue ?? 0)} icon={<ReceiptIcon className="h-4 w-4" />} tone="primary" />
-        <StatTile label="Transactions" value={today.data?.count ?? 0} icon={<ShoppingBag className="h-4 w-4" />} />
-        <StatTile label="Items sold" value={itemsToday.data ?? 0} icon={<Boxes className="h-4 w-4" />} />
-        <StatTile label="Low-stock items" value={lowStock.data?.length ?? 0} icon={<AlertTriangle className="h-4 w-4" />} tone="warning"
-          sub={lowStock.data?.length ? <Link to="/products" className="text-primary hover:underline">View</Link> : null} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile label="Revenue today" value={formatNaira(today.data?.revenue ?? 0)} icon={<ReceiptIcon className="h-5 w-5" />} tone="primary" />
+        <StatTile label="Transactions" value={today.data?.count ?? 0} icon={<ShoppingBag className="h-5 w-5" />} tone="accent" />
+        <StatTile label="Items sold" value={itemsToday.data ?? 0} icon={<Boxes className="h-5 w-5" />} tone="success" />
+        <StatTile label="Low-stock items" value={lowStock.data?.length ?? 0} icon={<AlertTriangle className="h-5 w-5" />} tone="warning"
+          sub={lowStock.data?.length ? <Link to="/products" className="font-medium text-primary hover:underline">View →</Link> : null} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Sales — last 14 days (₦)</CardTitle></CardHeader>
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 sm:gap-5">
+        <Card className="glass border-0 shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base">Sales — last 14 days (₦)</CardTitle>
+          </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trend.data ?? []}>
+                <defs>
+                  <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Line type="monotone" dataKey="total" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={false} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12 }} />
+                <Line type="monotone" dataKey="total" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={false} fill="url(#salesGrad)" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-base">Top sellers — last 7 days</CardTitle></CardHeader>
+        <Card className="glass border-0 shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display text-base">Top sellers — last 7 days</CardTitle>
+          </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topProducts.data ?? []} layout="vertical" margin={{ left: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} width={120} />
-                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                <Bar dataKey="qty" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12 }} />
+                <Bar dataKey="qty" fill="hsl(var(--accent))" radius={[0, 8, 8, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -138,22 +148,33 @@ export default function Dashboard() {
       </div>
 
       {!!lowStock.data?.length && (
-        <Card className="mt-6 shadow-card">
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-base">Low stock</CardTitle>
-            <Button asChild size="sm" variant="outline"><Link to="/products">Manage products</Link></Button>
+        <Card className="mt-6 glass border-0 shadow-card">
+          <CardHeader className="flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/15 text-warning-foreground">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <CardTitle className="font-display text-base">Low stock alerts</CardTitle>
+            </div>
+            <Button asChild size="sm" variant="outline" className="rounded-full">
+              <Link to="/products">Manage</Link>
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="divide-y">
+            <div className="divide-y divide-border/60">
               {lowStock.data!.slice(0, 8).map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-2 text-sm">
-                  <div>
-                    <div className="font-medium">{p.name}</div>
+                <div key={p.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{p.name}</div>
                     <div className="text-xs text-muted-foreground">SKU {p.sku}</div>
                   </div>
-                  <div className="tabular-nums text-warning-foreground">
-                    <span className="rounded-md bg-warning/20 px-2 py-0.5">{p.stock_qty} left</span>
-                    <span className="ml-2 text-xs text-muted-foreground">re-order @ {p.reorder_level}</span>
+                  <div className="flex shrink-0 items-center gap-2 tabular-nums">
+                    <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                      {p.stock_qty} left
+                    </span>
+                    <span className="hidden text-xs text-muted-foreground sm:inline">
+                      re-order @ {p.reorder_level}
+                    </span>
                   </div>
                 </div>
               ))}

@@ -404,8 +404,8 @@ export default function POS() {
         </Card>
       </div>
 
-      {/* ===== Mobile sticky checkout bar ===== */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 p-3 shadow-elevated backdrop-blur lg:hidden">
+      {/* ===== Mobile sticky checkout bar (sits above bottom nav) ===== */}
+      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong p-3 shadow-elevated lg:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
         <Sheet open={showCart} onOpenChange={setShowCart}>
           <SheetTrigger asChild>
             <Button
