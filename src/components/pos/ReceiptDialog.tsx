@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -153,6 +153,7 @@ function buildReceiptHtml(d: ReceiptData): string {
 
 export function ReceiptDialog({ data, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const hasAutoPrintedRef = useRef(false);
 
   const printReceipt = () => {
     if (!data) return;
@@ -195,6 +196,20 @@ export function ReceiptDialog({ data, onClose }: Props) {
       toast.error(msg);
     }
   };
+
+  // Auto-print once when a new receipt is shown.
+  useEffect(() => {
+    if (data && !hasAutoPrintedRef.current) {
+      hasAutoPrintedRef.current = true;
+      // Small delay so the dialog has a chance to mount before opening a popup.
+      const t = setTimeout(() => printReceipt(), 120);
+      return () => clearTimeout(t);
+    }
+    if (!data) {
+      hasAutoPrintedRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   return (
     <Dialog open={!!data} onOpenChange={(o) => !o && onClose()}>

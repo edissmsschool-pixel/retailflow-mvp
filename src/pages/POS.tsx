@@ -110,7 +110,6 @@ export default function POS() {
   };
 
   const handleScanned = async (code: string) => {
-    setShowScanner(false);
     const term = code.trim();
     if (!term) return;
     // Try local cache first
