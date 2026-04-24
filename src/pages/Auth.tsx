@@ -53,18 +53,36 @@ export default function Auth() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-primary text-primary-foreground shadow-elevated">
-            <Store className="h-5 w-5" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      {/* Decorative gradient blobs */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-32 -left-24 h-[28rem] w-[28rem] rounded-full opacity-40 blur-3xl"
+        style={{ background: "var(--gradient-primary)" }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full opacity-30 blur-3xl"
+        style={{ background: "var(--gradient-accent)" }}
+      />
+
+      <div className="relative z-10 w-full max-w-md animate-fade-in">
+        <div className="mb-7 flex flex-col items-center justify-center gap-3 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary text-primary-foreground shadow-elevated">
+            <Store className="h-7 w-7" />
           </div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Retail POS</h1>
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight">Perepiri Food Mart</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Fresh retail, faster checkout.</p>
+          </div>
         </div>
-        <Card className="shadow-card">
+
+        <Card className="glass border-0 shadow-elevated">
           <CardHeader className="pb-4">
-            <CardTitle>Welcome</CardTitle>
-            <CardDescription>Sign in to access the till. The first account becomes the admin.</CardDescription>
+            <CardTitle className="text-xl">Welcome</CardTitle>
+            <CardDescription>
+              Sign in to access the till. The first account becomes the admin.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">
@@ -76,17 +94,27 @@ export default function Auth() {
                 <form onSubmit={handleSignIn} className="space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="si-email">Email</Label>
-                    <Input id="si-email" type="email" required autoComplete="email"
+                    <Input
+                      id="si-email" type="email" required autoComplete="email"
+                      className="h-11"
                       value={signInData.email}
-                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })} />
+                      onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="si-pass">Password</Label>
-                    <Input id="si-pass" type="password" required autoComplete="current-password"
+                    <Input
+                      id="si-pass" type="password" required autoComplete="current-password"
+                      className="h-11"
                       value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })} />
+                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                    />
                   </div>
-                  <Button type="submit" className="w-full" disabled={busy}>
+                  <Button
+                    type="submit"
+                    className="h-12 w-full text-base font-semibold shadow-glow"
+                    disabled={busy}
+                  >
                     {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Sign in
                   </Button>
                 </form>
@@ -95,22 +123,34 @@ export default function Auth() {
                 <form onSubmit={handleSignUp} className="space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="su-name">Full name</Label>
-                    <Input id="su-name" required value={signUpData.full_name}
-                      onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })} />
+                    <Input
+                      id="su-name" required className="h-11"
+                      value={signUpData.full_name}
+                      onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="su-email">Email</Label>
-                    <Input id="su-email" type="email" required autoComplete="email"
+                    <Input
+                      id="su-email" type="email" required autoComplete="email" className="h-11"
                       value={signUpData.email}
-                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })} />
+                      onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="su-pass">Password (min 8 chars)</Label>
-                    <Input id="su-pass" type="password" required minLength={8} autoComplete="new-password"
+                    <Input
+                      id="su-pass" type="password" required minLength={8} autoComplete="new-password"
+                      className="h-11"
                       value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })} />
+                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                    />
                   </div>
-                  <Button type="submit" className="w-full" disabled={busy}>
+                  <Button
+                    type="submit"
+                    className="h-12 w-full text-base font-semibold shadow-glow"
+                    disabled={busy}
+                  >
                     {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create account
                   </Button>
                 </form>
@@ -118,6 +158,10 @@ export default function Auth() {
             </Tabs>
           </CardContent>
         </Card>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} Perepiri Food Mart
+        </p>
       </div>
     </main>
   );
