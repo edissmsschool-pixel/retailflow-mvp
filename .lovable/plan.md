@@ -1,33 +1,33 @@
 
-## Fix receipt printing
 
-The Print button currently calls `window.print()` from inside the Lovable preview iframe. Mobile browsers and sandboxed iframes block or ignore that call, so nothing happens. The PDF path also occasionally fails silently because errors from `html2canvas` are swallowed.
+## Auto-print receipt + auto-detect barcode scanner
 
-### What I'll change
+Two small UX upgrades to the POS so cashiers don't have to tap extra buttons.
 
-**1. Replace `window.print()` with a dedicated print window**
-In `src/components/pos/ReceiptDialog.tsx`, build a self-contained HTML document containing just the receipt markup + inlined 80mm thermal CSS, open it via `window.open('', '_blank')`, write the HTML, then call `print()` on that new window once it loads. This works on desktop browsers, Android Chrome, iOS Safari, and inside the Lovable preview because the new tab is no longer sandboxed by the iframe. Falls back gracefully if popups are blocked (toast + offer PDF).
+### 1. Auto-print receipt after payment
 
-**2. Make the print HTML self-sufficient**
-Embed the receipt as plain HTML/CSS (no Tailwind dependency, no theme tokens) so the print window renders identically on any device and any printer driver. Includes:
-- 80mm page size + zero margins via `@page`
-- Monospace font, dashed dividers, right-aligned tabular numbers
-- Auto-trigger `print()` then `close()` on the new window after the dialog is dismissed
+Today, after payment is confirmed the `ReceiptDialog` opens and the cashier has to tap **Print**. Change it so the print window opens automatically the moment the receipt dialog appears.
 
-**3. Harden PDF download**
-- Surface real error messages instead of a generic toast
-- Force white background and explicit pixel width on the cloned node so html2canvas always has a stable layout
-- Lazy-load `html2canvas`/`jspdf` only on click (already the case)
+- In `src/components/pos/ReceiptDialog.tsx`, add a `useEffect` that fires once when the dialog transitions to `open === true` and a receipt is present, calling the existing `printReceipt()` helper.
+- Guard with a `hasAutoPrintedRef` so it only fires once per receipt (prevents re-print on re-render or when the user closes/reopens manually).
+- Reset the guard whenever the dialog closes so the next sale prints again.
+- Keep the manual **Print** button as a fallback (popup blockers, reprint).
+- If the popup is blocked, the existing toast already tells the cashier to use **PDF** — no change needed there.
 
-**4. Fix the dialog accessibility warning**
-Add a `DialogDescription` (visually hidden) to the receipt dialog and the held-sales dialog to clear the Radix `aria-describedby` warning seen in the console.
+### 2. Barcode scanner: automatic continuous detection
 
-**5. Add a "Print" affordance that's reachable on mobile**
-The current 3-button footer fits, but on a 360px screen it's tight. Stack buttons vertically below `sm` breakpoint so each gets full width and the 48px touch target is preserved.
+Today the scanner closes after the first successful read. The user wants it to keep detecting automatically.
+
+- In `src/components/pos/BarcodeScanner.tsx`, on a successful decode: keep the camera stream alive, call `onDetected(code)`, vibrate, show a brief in-dialog "Added: <code>" confirmation, then resume scanning.
+- Add a short debounce window (~1.2s) per code so the same barcode held in front of the camera doesn't add the same item dozens of times. Different codes scan immediately.
+- Keep an **X / Done** button so the cashier can close when finished.
+- In `src/pages/POS.tsx`, stop closing the scanner inside `handleScanned` — let the dialog stay open until the cashier dismisses it. Each detected product still adds to the cart and shows the existing toast.
 
 ### Files touched
-- `src/components/pos/ReceiptDialog.tsx` — new print-window helper, better error handling, responsive footer, a11y description
-- `src/pages/POS.tsx` — add `DialogDescription` to held-sales dialog (small a11y cleanup)
+- `src/components/pos/ReceiptDialog.tsx` — auto-print effect + ref guard
+- `src/components/pos/BarcodeScanner.tsx` — continuous scanning with per-code debounce + on-screen confirmation
+- `src/pages/POS.tsx` — remove auto-close of scanner after a hit
 
 ### Verification
-After the change I'll open the preview at mobile width, run a sale, then click **Print** and **PDF** from the receipt dialog to confirm both work end-to-end.
+Run a sale → confirm payment → print dialog opens automatically. Then open the scanner, scan two different barcodes back-to-back without closing it, and confirm both land in the cart.
+
