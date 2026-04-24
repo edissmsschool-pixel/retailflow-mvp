@@ -179,6 +179,24 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
               </span>
             </div>
           )}
+
+          {/* Continuous-scan badge */}
+          {!starting && !error && (
+            <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-white">
+              Auto-scan
+            </div>
+          )}
+
+          {/* Last detection toast inside dialog */}
+          {lastCode && !error && (
+            <div
+              key={lastCode + String(lastHitsRef.current.get(lastCode) ?? "")}
+              className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-success/90 px-3 py-2 text-xs font-medium text-success-foreground shadow-elevated animate-in fade-in slide-in-from-bottom-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="truncate">Added: {lastCode}</span>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
