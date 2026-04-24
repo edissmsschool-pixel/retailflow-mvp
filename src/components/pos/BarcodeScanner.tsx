@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, X, RefreshCw } from "lucide-react";
+import { Camera, CheckCircle2, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -24,10 +24,12 @@ interface Props {
 export function BarcodeScanner({ open, onClose, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const lastHitsRef = useRef<Map<string, number>>(new Map());
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [lastCode, setLastCode] = useState<string | null>(null);
 
   // Stop the active stream
   const stop = () => {
@@ -71,15 +73,23 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
         const controls = await reader.decodeFromVideoDevice(
           deviceId,
           videoRef.current,
-          (result, _err, ctrl) => {
-            if (result) {
-              const text = result.getText();
-              try { ctrl.stop(); } catch { /* noop */ }
-              controlsRef.current = null;
-              // Light haptic + audio cue if available
-              try { navigator.vibrate?.(60); } catch { /* noop */ }
-              onDetected(text);
+          (result) => {
+            if (!result) return;
+            const text = result.getText();
+            const now = Date.now();
+            const last = lastHitsRef.current.get(text) ?? 0;
+            // Per-code debounce: ignore the same code if seen in the last 1.2s.
+            if (now - last < 1200) return;
+            lastHitsRef.current.set(text, now);
+            // Trim old entries to keep the map small.
+            if (lastHitsRef.current.size > 50) {
+              for (const [k, v] of lastHitsRef.current) {
+                if (now - v > 5000) lastHitsRef.current.delete(k);
+              }
             }
+            try { navigator.vibrate?.(60); } catch { /* noop */ }
+            setLastCode(text);
+            onDetected(text);
           }
         );
         if (cancelled) {
@@ -167,6 +177,24 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
               <span className="text-xs text-white/70">
                 Allow camera access in your browser settings, then try again.
               </span>
+            </div>
+          )}
+
+          {/* Continuous-scan badge */}
+          {!starting && !error && (
+            <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-white">
+              Auto-scan
+            </div>
+          )}
+
+          {/* Last detection toast inside dialog */}
+          {lastCode && !error && (
+            <div
+              key={lastCode + String(lastHitsRef.current.get(lastCode) ?? "")}
+              className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-success/90 px-3 py-2 text-xs font-medium text-success-foreground shadow-elevated animate-in fade-in slide-in-from-bottom-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="truncate">Added: {lastCode}</span>
             </div>
           )}
         </div>
