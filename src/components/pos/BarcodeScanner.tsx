@@ -73,15 +73,23 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
         const controls = await reader.decodeFromVideoDevice(
           deviceId,
           videoRef.current,
-          (result, _err, ctrl) => {
-            if (result) {
-              const text = result.getText();
-              try { ctrl.stop(); } catch { /* noop */ }
-              controlsRef.current = null;
-              // Light haptic + audio cue if available
-              try { navigator.vibrate?.(60); } catch { /* noop */ }
-              onDetected(text);
+          (result) => {
+            if (!result) return;
+            const text = result.getText();
+            const now = Date.now();
+            const last = lastHitsRef.current.get(text) ?? 0;
+            // Per-code debounce: ignore the same code if seen in the last 1.2s.
+            if (now - last < 1200) return;
+            lastHitsRef.current.set(text, now);
+            // Trim old entries to keep the map small.
+            if (lastHitsRef.current.size > 50) {
+              for (const [k, v] of lastHitsRef.current) {
+                if (now - v > 5000) lastHitsRef.current.delete(k);
+              }
             }
+            try { navigator.vibrate?.(60); } catch { /* noop */ }
+            setLastCode(text);
+            onDetected(text);
           }
         );
         if (cancelled) {
