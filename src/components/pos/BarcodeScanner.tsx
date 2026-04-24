@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, X, RefreshCw } from "lucide-react";
+import { Camera, CheckCircle2, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -25,10 +24,12 @@ interface Props {
 export function BarcodeScanner({ open, onClose, onDetected }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const lastHitsRef = useRef<Map<string, number>>(new Map());
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [lastCode, setLastCode] = useState<string | null>(null);
 
   // Stop the active stream
   const stop = () => {
