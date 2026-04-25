@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, ArrowUpDown, AlertTriangle, Sparkles, Upload, Loader2 } from "lucide-react";
 import { formatNaira, nairaToKobo, koboToNaira } from "@/lib/money";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
+import { generateSku } from "@/lib/sku";
+import { ImportDialog } from "@/components/products/ImportDialog";
 
 type Product = Tables<"products">;
 
@@ -39,6 +41,8 @@ export default function Products() {
   const [adjustFor, setAdjustFor] = useState<Product | null>(null);
   const [adjustQty, setAdjustQty] = useState("");
   const [adjustReason, setAdjustReason] = useState("restock");
+  const [importOpen, setImportOpen] = useState(false);
+  const [generatingSku, setGeneratingSku] = useState(false);
 
   const products = useQuery({
     queryKey: ["products-list", search],
@@ -114,9 +118,21 @@ export default function Products() {
             <Button variant={showLow ? "default" : "outline"} onClick={() => setShowLow((v) => !v)}>
               <AlertTriangle className="mr-2 h-4 w-4" />Low stock
             </Button>
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />Import CSV
+            </Button>
             <Button onClick={() => setEditing(empty)}><Plus className="mr-2 h-4 w-4" />New product</Button>
           </>
         }
+      />
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => {
+          qc.invalidateQueries({ queryKey: ["products-list"] });
+          qc.invalidateQueries({ queryKey: ["pos-products"] });
+          qc.invalidateQueries({ queryKey: ["categories"] });
+        }}
       />
       <Card className="shadow-card">
         <CardContent className="p-4">
@@ -174,7 +190,28 @@ export default function Products() {
               </div>
               <div className="space-y-1.5">
                 <Label>SKU</Label>
-                <Input value={editing.sku} onChange={(e) => setEditing({ ...editing, sku: e.target.value })} />
+                <div className="flex gap-2">
+                  <Input value={editing.sku} onChange={(e) => setEditing({ ...editing, sku: e.target.value })} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Auto-generate SKU"
+                    disabled={generatingSku}
+                    onClick={async () => {
+                      setGeneratingSku(true);
+                      try {
+                        const cat = categories.data?.find((c) => c.id === editing.category_id)?.name ?? null;
+                        const sku = await generateSku(cat);
+                        setEditing({ ...editing, sku });
+                      } finally {
+                        setGeneratingSku(false);
+                      }
+                    }}
+                  >
+                    {generatingSku ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Barcode</Label>
