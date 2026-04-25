@@ -146,6 +146,20 @@ function buildReceiptHtml(d: ReceiptData): string {
     window.addEventListener('afterprint', function () {
       setTimeout(function () { window.close(); }, 150);
     });
+  <script>
+    (function () {
+      function doPrint() {
+        try { window.focus(); window.print(); } catch (e) {}
+      }
+      if (document.readyState === 'complete') {
+        setTimeout(doPrint, 120);
+      } else {
+        window.addEventListener('load', function () { setTimeout(doPrint, 120); });
+      }
+      window.addEventListener('afterprint', function () {
+        setTimeout(function () { try { window.close(); } catch (e) {} }, 150);
+      });
+    })();
   </script>
 </body>
 </html>`;
@@ -163,9 +177,23 @@ export function ReceiptDialog({ data, onClose }: Props) {
       toast.error("Pop-up blocked. Allow pop-ups or download the PDF instead.");
       return;
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
+    try {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+    } catch (e) {
+      toast.error("Could not open print window");
+      return;
+    }
+    // Parent-side fallback in case the inline script does not fire (some browsers).
+    const tryPrint = () => {
+      try { win.focus(); win.print(); } catch (e) { /* ignore */ }
+    };
+    if (win.document.readyState === "complete") {
+      setTimeout(tryPrint, 250);
+    } else {
+      win.addEventListener("load", () => setTimeout(tryPrint, 250));
+    }
   };
 
   const downloadPdf = async () => {
