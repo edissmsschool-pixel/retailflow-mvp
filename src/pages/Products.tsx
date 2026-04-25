@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, ArrowUpDown, AlertTriangle, Sparkles, Upload, Loader2 } from "lucide-react";
 import { formatNaira, nairaToKobo, koboToNaira } from "@/lib/money";
 import { toast } from "sonner";
 import { Tables } from "@/integrations/supabase/types";
+import { generateSku } from "@/lib/sku";
+import { ImportDialog } from "@/components/products/ImportDialog";
 
 type Product = Tables<"products">;
 
@@ -39,6 +41,8 @@ export default function Products() {
   const [adjustFor, setAdjustFor] = useState<Product | null>(null);
   const [adjustQty, setAdjustQty] = useState("");
   const [adjustReason, setAdjustReason] = useState("restock");
+  const [importOpen, setImportOpen] = useState(false);
+  const [generatingSku, setGeneratingSku] = useState(false);
 
   const products = useQuery({
     queryKey: ["products-list", search],
