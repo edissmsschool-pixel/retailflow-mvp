@@ -40,6 +40,30 @@ Deno.serve(async (req) => {
       _performed_by: uid,
     });
     if (error) return json({ error: error.message }, 400);
+
+    // Low-stock notification
+    (async () => {
+      try {
+        const { data: p } = await admin
+          .from("products")
+          .select("name, stock_qty, reorder_level")
+          .eq("id", product_id)
+          .single();
+        if (p && p.stock_qty <= p.reorder_level) {
+          await admin.functions.invoke("send-push", {
+            body: {
+              title: "Low stock alert",
+              body: `${p.name} (${p.stock_qty} left)`,
+              url: "/products",
+              roles: ["admin", "manager"],
+            },
+          });
+        }
+      } catch (e) {
+        console.error("notification dispatch failed", e);
+      }
+    })();
+
     return json({ ok: true });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);

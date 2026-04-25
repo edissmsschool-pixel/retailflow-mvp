@@ -55,6 +55,46 @@ Deno.serve(async (req) => {
     });
     if (error) return json({ error: error.message }, 400);
 
+    // Fire-and-forget notifications: new sale + low stock alerts
+    (async () => {
+      try {
+        const { data: sale } = await admin
+          .from("sales")
+          .select("sale_number, total_kobo")
+          .eq("id", data)
+          .single();
+        const total = ((sale?.total_kobo ?? 0) / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" });
+        await admin.functions.invoke("send-push", {
+          body: {
+            title: "New sale completed",
+            body: `Sale #${sale?.sale_number} — ${total}`,
+            url: "/sales",
+            roles: ["admin", "manager"],
+          },
+        });
+
+        // Low stock check
+        const productIds = items.map((i) => i.product_id);
+        const { data: lowProds } = await admin
+          .from("products")
+          .select("name, stock_qty, reorder_level")
+          .in("id", productIds);
+        const low = (lowProds ?? []).filter((p) => p.stock_qty <= p.reorder_level);
+        if (low.length) {
+          await admin.functions.invoke("send-push", {
+            body: {
+              title: "Low stock alert",
+              body: low.map((p) => `${p.name} (${p.stock_qty} left)`).join(", "),
+              url: "/products",
+              roles: ["admin", "manager"],
+            },
+          });
+        }
+      } catch (e) {
+        console.error("notification dispatch failed", e);
+      }
+    })();
+
     return json({ sale_id: data });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
