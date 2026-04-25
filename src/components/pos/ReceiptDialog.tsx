@@ -146,6 +146,20 @@ function buildReceiptHtml(d: ReceiptData): string {
     window.addEventListener('afterprint', function () {
       setTimeout(function () { window.close(); }, 150);
     });
+  <script>
+    (function () {
+      function doPrint() {
+        try { window.focus(); window.print(); } catch (e) {}
+      }
+      if (document.readyState === 'complete') {
+        setTimeout(doPrint, 120);
+      } else {
+        window.addEventListener('load', function () { setTimeout(doPrint, 120); });
+      }
+      window.addEventListener('afterprint', function () {
+        setTimeout(function () { try { window.close(); } catch (e) {} }, 150);
+      });
+    })();
   </script>
 </body>
 </html>`;
