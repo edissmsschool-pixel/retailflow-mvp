@@ -219,15 +219,56 @@ export default function POS() {
 
   const holdSale = async () => {
     if (!cart.length || !user) return;
+    const label = `${cart.length} item(s) • ${formatNaira(totalKobo)}`;
     const { error } = await supabase.from("held_sales").insert({
       cashier_id: user.id,
-      label: `${cart.length} item(s) • ${formatNaira(totalKobo)}`,
+      label,
       cart: cart as unknown as never,
     });
     if (error) return toast.error(error.message);
+
+    // Build a hold-slip receipt and trigger silent auto-print so the customer
+    // walks away with a paper record of what is being held.
+    const { data: settings } = await supabase
+      .from("store_settings")
+      .select("*")
+      .eq("id", 1)
+      .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (settings) {
+      setReceipt({
+        store_name: settings.store_name,
+        store_address: settings.address,
+        store_phone: settings.phone,
+        receipt_footer: `HOLD SLIP — ${label}\n${settings.receipt_footer ?? ""}`,
+        sale_number: `HOLD-${Date.now().toString().slice(-6)}`,
+        cashier_name: profile?.full_name || "",
+        created_at: new Date().toISOString(),
+        items: cart.map((l) => ({
+          product_name: l.name,
+          sku: l.sku,
+          quantity: l.quantity,
+          unit_price_kobo: l.unit_price_kobo,
+          line_discount_kobo: l.line_discount_kobo,
+          line_total_kobo: Math.max(0, l.unit_price_kobo * l.quantity - l.line_discount_kobo),
+        })),
+        subtotal_kobo: subtotalKobo,
+        discount_kobo: saleDiscountKobo,
+        total_kobo: totalKobo,
+        payment_method: "cash",
+        amount_tendered_kobo: 0,
+        change_kobo: 0,
+        status: "on_hold",
+      });
+    }
+
     clearCart();
     qc.invalidateQueries({ queryKey: ["held-sales"] });
-    toast.success("Sale held");
+    toast.success("Sale held — printing slip");
   };
 
   const recall = async (id: string, c: CartLine[]) => {
@@ -481,11 +522,12 @@ export default function POS() {
       {/* ===== Receipt ===== */}
       <ReceiptDialog data={receipt} onClose={() => setReceipt(null)} />
 
-      {/* ===== Camera barcode scanner ===== */}
+      {/* ===== Camera barcode + image scanner ===== */}
       <BarcodeScanner
         open={showScanner}
         onClose={() => setShowScanner(false)}
         onDetected={handleScanned}
+        onIdentified={(p) => addProduct(p as Product)}
       />
     </div>
   );

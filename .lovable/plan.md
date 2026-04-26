@@ -1,147 +1,145 @@
 ## Goals
 
-1. Fix the bug that's breaking Sales/Reports/Shifts/Staff pages today.
-2. Make role-based access airtight on the server.
-3. Auto-generate SKUs for new products.
-4. Add a bulk CSV import/update tool for products.
-5. Add web push notifications (low stock + new sale alerts).
-6. Spot-check the rest of the app and fix anything else that's broken.
+1. **Silent / no-popup printing** — receipts auto-print without opening a second window.
+2. **Print on hold + on cash payment of held sale** — cashier always gets a paper trail.
+3. **Image + barcode scanner** — same camera detects barcode AND captures a product photo for visual confirmation.
+4. **Bug sweep + per-page QA** — fix the live `ProtectedRoute` ref warning and verify every page actually loads.
 
 ---
 
-## 1. Fix the broken FK relationship (root cause of current 400 errors)
+## 1. Silent print via hidden iframe
 
-The Sales page is failing with:
+**Reality check:** browsers cannot bypass the OS print dialog (security). They CAN avoid opening a new window, and Chrome users running with `--kiosk-printing` will print silently to their default printer. The plan delivers the closest-to-silent experience possible from a web app.
 
-> Could not find a relationship between 'sales' and 'cashier_id' in the schema cache
+Replace the `window.open()` flow in `src/components/pos/ReceiptDialog.tsx` with a hidden `<iframe>` injected into the current page:
 
-Why: `sales.cashier_id` has a FK to `auth.users`, not to `public.profiles`. PostgREST can only embed `profiles:cashier_id(full_name)` if a FK exists between those two **public** tables. Same problem for `shifts.cashier_id`, `held_sales.cashier_id`, and `user_roles.user_id` (used implicitly through Staff page joins).
+```text
+[Confirm Payment] → checkout RPC → loadReceipt()
+                                    ↓
+            <iframe srcdoc=receiptHTML hidden>
+                                    ↓
+            iframe.onload → iframe.contentWindow.print()
+                                    ↓
+            afterprint → remove iframe (no window left behind)
+```
 
-Fix (migration):
-- Add FKs from `sales.cashier_id`, `shifts.cashier_id`, `held_sales.cashier_id`, `user_roles.user_id`, and `stock_movements.performed_by` → `public.profiles(id) ON DELETE SET NULL` (or RESTRICT for user_roles). The profiles row already exists for every auth user (created by the `handle_new_user` trigger), so this is safe.
-- After the migration, the existing `profiles:cashier_id(full_name)` and `user_roles(role)` embeds will start resolving correctly. **No client-side changes needed for this fix** — the pages will start working immediately.
+Benefits:
+- No popup blocker issues
+- No flash of a second window
+- Cashier just sees the OS print dialog (or nothing if kiosk-printing is on)
+- Print works on iOS Safari where popups are flaky
 
-Pages that recover automatically: **Sales, Reports, Shifts, Staff**.
-
----
-
-## 2. Role-based access audit & hardening
-
-Current state is mostly good (RLS uses `has_role` / `is_manager_or_admin` / `is_staff` security-definer functions, no recursive policies, roles in a separate `user_roles` table). Remaining gaps:
-
-- **`profiles` SELECT** is gated by `is_staff` — fine, but cashiers can read every staff member's name + phone. Tighten to: cashier sees only own row + minimal display name of co-workers; admin/manager see everything.
-- **`store_settings` UPDATE** is admin-only — good. Add an explicit policy for staff to read (already there via `is_staff`).
-- **`held_sales`** allows ALL on own rows — fine.
-- **`stock_movements`** has read-only for staff; INSERTs only happen via security-definer RPCs — good.
-- **Sales detail RLS**: `sale_items` SELECT lets the original cashier see their own. After voiding, this still works — confirmed correct.
-- Add a server-side `is_admin(uuid)` helper for symmetry (cosmetic).
-- Front-end: `ProtectedRoute` already guards routes. Add an in-page guard for `/staff` actions (e.g., the "Add staff" button is only rendered if `hasRole('admin')` is true — already enforced by route, but I'll add a defensive check inside the page too).
-
-No data-leak vulnerabilities found. Changes are minor tightening.
+The "Print" button in the dialog stays as a manual re-trigger using the same iframe path. Auto-print fires once per new receipt (existing `hasAutoPrintedRef` guard preserved).
 
 ---
 
-## 3. Auto-generate SKUs
+## 2. Print receipt on hold + on cash payment of held sale
 
-In the Products dialog, when creating a new product:
-- Add a "Generate" button next to the SKU field, and auto-generate on first focus if the field is blank.
-- Format: `<CAT>-<SEQ>` where `<CAT>` is the first 3 letters of the selected category (uppercase, e.g. `BEV`, `GRO`, `SNK`) — fall back to `GEN` if no category.
-- `<SEQ>` is a zero-padded incrementing counter scoped to the category, computed by querying the max existing SKU in that category and adding 1 (e.g. `BEV-014`).
-- Done client-side with a single `select sku from products where sku ilike 'BEV-%'` query, so it's unique without needing a sequence.
-- Variants/combinations: if the user later adds a variant on an existing product, append `-V<n>` (e.g. `BEV-014-V2`). For now there is no variants table, so this is just future-proof formatting; the same generator handles it.
-- A unique constraint on `products.sku` already exists implicitly via app logic — I'll add an explicit `UNIQUE` index to the DB to prevent races.
+Today: holding does not print, recalling+paying cash does print (auto). Change:
+
+- **Hold action** (`POS.tsx → holdSale`): after inserting into `held_sales`, build a `ReceiptData` marked with `status: "on_hold"` (already supported by Receipt header) and trigger the silent iframe print. Customer keeps a hold slip showing items and total.
+- **Recall + pay cash**: already auto-prints final receipt; verify it still triggers via the new iframe path (it will, because it goes through the same `setReceipt(...)` → `ReceiptDialog` flow).
 
 ---
 
-## 4. Bulk product import / editor
+## 3. Camera that scans barcode AND product image
 
-New "Import" button on the Products page → opens a dialog that accepts a CSV file.
+Upgrade `BarcodeScanner.tsx`:
 
-**Columns supported** (header row required, case-insensitive):
-`sku, name, barcode, category, cost_price, sell_price, stock_qty, reorder_level, active`
+- Add a **"Capture image"** shutter button next to **"Switch camera"**. Pressing it grabs the current video frame to a canvas → produces a data URL.
+- Add an **image-recognition path**: if the scanner runs for ~3s without detecting a barcode, show a "No barcode found — identify by photo?" prompt with a "Snap & identify" button.
+- Call a new edge function **`identify-product`** that takes the captured image (base64) plus a list of catalog product names/SKUs, asks **Lovable AI** (`google/gemini-2.5-flash`, vision-capable, no API key required) to pick the best match, and returns `{ product_id, confidence }`.
+- On match: cashier sees a confirm card with the product image + name + "Add to cart". On no match: toast "Could not identify product".
 
-Behavior:
-- Parse client-side with a tiny CSV reader (no new dep — use the existing `lib/csv.ts` helper extended with a `parseCsv` function).
-- For each row: if `sku` already exists → UPDATE that product; otherwise INSERT a new product. (Upsert by SKU.)
-- `category` is matched by name (case-insensitive); if missing, auto-create the category.
-- Prices are entered in naira and converted to kobo before write.
-- Show a preview table (first 20 rows) with row-level validation (red border on errors), then a "Confirm import" button.
-- On submit, batch in chunks of 200 via `supabase.from("products").upsert(..., { onConflict: "sku" })`.
-- Show a summary toast: "Created X, updated Y, skipped Z (errors)."
-- Add an "Export template CSV" button so users get a correctly formatted starter file.
+Wiring on the POS side: `handleScanned` already accepts a code; add a parallel `handleIdentified(productId)` that calls `addProduct(p)`. Scanner stays open between scans (already implemented).
 
-This is the "bulk editor" the user asked for — handles thousands of rows without touching the UI per product.
+UI: keep current camera viewport; overlay shows last-detected barcode OR last-identified product chip.
 
 ---
 
-## 5. Push notifications
+## 4. Live bug fixes
 
-Use the **Web Push** standard (works on Chrome/Edge/Firefox/Android, plus iOS 16.4+ when installed as a PWA).
+From the console snapshot:
 
-Setup:
-- Generate a VAPID keypair once and store the **public** key in a new `store_settings.vapid_public_key` column (or a constant), and the **private** key in a Supabase secret `VAPID_PRIVATE_KEY` for the edge function to sign with.
-- New table `push_subscriptions(id, user_id, endpoint, p256dh, auth, created_at)` with RLS so users only see/manage their own subscriptions.
-- Add a service worker `public/sw.js` that listens for `push` events and shows a notification.
-- Add a small "Enable notifications" toggle in Settings → calls `Notification.requestPermission()`, registers the SW, calls `pushManager.subscribe({ applicationServerKey: vapidPublic })`, posts the result to a new edge function `register-push` that inserts into `push_subscriptions`.
-- New edge function `send-push` that takes `{ user_ids?: uuid[], roles?: Role[], title, body, url? }`, looks up matching subscriptions, signs and POSTs to each endpoint using the Web Push protocol (use the `web-push` npm package via esm.sh import in Deno).
-- **Triggers** (server-side):
-  - Inside `process_checkout` RPC, after a successful sale, enqueue a "New sale" notification for all admins/managers (calls `send-push` via `pg_net`, or simpler: do it from the existing `checkout` edge function right after the RPC succeeds, so we stay in TypeScript).
-  - Inside `adjust-stock` and `process_refund`, after the update, check if the product's `stock_qty <= reorder_level` and fire a "Low stock" notification (also done in the edge function layer, not the SQL).
-- Permissions are stored per device, so a single user logging in on phone + laptop gets two subscription rows; both are notified.
-
-The user gets a real OS-level notification ("New sale ₦7,300 — Cashier: John") even when the tab is closed (on desktop and Android).
+- **`ProtectedRoute` and `Auth` "Function components cannot be given refs" warnings** — `ProtectedRoute` returns `<Navigate>` directly; React Router 6 forwards refs from parent into children of `Route`. Wrap the `Navigate` and the children with a `Fragment`/`forwardRef` shell so the ref isn't passed to a function component. Same fix in `Auth.tsx`.
+- **React Router v7 future-flag warnings** — add `future={{ v7_startTransition: true, v7_relativeSplatPath: true }}` to `<BrowserRouter>` in `src/App.tsx` to silence and pre-opt-in.
 
 ---
 
-## 6. Step-by-step QA pass + bug fixes
+## 5. Per-page QA pass
 
-After the FK migration deploys, I'll click through each route as admin:
+For each route I will: load it logged in as admin, check Network tab for 4xx/5xx, check Console for red errors, exercise the primary action, and patch anything broken.
 
-| Page | What I verify |
-|------|---------------|
-| Dashboard | Tiles load, no console errors |
-| POS | Add to cart → checkout cash → receipt prints automatically |
-| Products | Create / edit / adjust stock; new "Generate SKU" + "Import CSV" buttons work |
-| Sales | List loads (FK fix), open a sale, refund 1 item, void sale |
-| Reports | All charts populate, CSV exports |
-| Shifts | Open shift from POS, close shift, variance calculates |
-| Staff | List loads with roles, add new staff, change role, deactivate |
-| Settings | Update store name + receipt footer; toggle push notifications |
+| Page | Primary action exercised | What I'll watch for |
+|---|---|---|
+| /auth | Sign in | Ref warning (fix above) |
+| /dashboard | Loads tiles + chart | Stat tile NaNs, chart errors |
+| /pos | Add → checkout cash → print | Auto-print fires through iframe |
+| /pos | Hold cart | New hold-slip prints |
+| /pos | Camera scan + image identify | Both code & AI paths work |
+| /products | Create + auto-SKU + CSV import | RLS errors, SKU dupe |
+| /sales | List + view receipt | `profiles` join error |
+| /reports | Charts render with data | Currency formatting, empty state |
+| /staff | List + create staff | Admin-only gating |
+| /shifts | Open / close shift | Variance math |
+| /settings | Save store info + push toggle | VAPID key, SW registration |
 
-Anything that throws will get a follow-up fix in the same pass. I'll also re-check the security scanner after the migration.
-
----
-
-## Files & changes
-
-**Migration (one):**
-- Add FKs (`sales`, `shifts`, `held_sales`, `user_roles`, `stock_movements`) → `profiles`.
-- Add `UNIQUE` on `products.sku`.
-- Add `push_subscriptions` table + RLS.
-
-**Edge functions:**
-- New: `register-push/index.ts`, `send-push/index.ts`.
-- Edit: `checkout/index.ts` (fire low-stock + new-sale push after success), `refund-sale/index.ts`, `adjust-stock/index.ts` (low-stock push).
-
-**Front-end:**
-- `src/lib/sku.ts` — SKU generator.
-- `src/lib/csv.ts` — extend with `parseCsv`.
-- `src/components/products/ImportDialog.tsx` — new bulk import UI.
-- `src/pages/Products.tsx` — wire up Generate-SKU button + Import dialog.
-- `src/pages/Settings.tsx` — push-notification toggle.
-- `public/sw.js` — service worker for push display.
-- `src/main.tsx` — register the service worker.
-
-**No client changes needed** for Sales/Reports/Shifts/Staff fixes — the migration alone fixes them.
+Each issue found becomes a small commit in the same loop.
 
 ---
 
-## Verification checklist (after build)
+## Files touched
 
-- [ ] Sales page lists today's sales without 400.
-- [ ] Reports "Sales by cashier" table shows real names.
-- [ ] Staff page shows role dropdowns populated correctly.
-- [ ] Creating a new product with a category auto-fills SKU like `BEV-014`.
-- [ ] Importing a 50-row CSV upserts cleanly and shows a summary toast.
-- [ ] Allowing notifications + completing a sale shows an OS-level toast on a second device.
-- [ ] Security scan shows no new errors.
+- `src/components/pos/ReceiptDialog.tsx` — replace popup with hidden iframe; keep manual Print + PDF buttons.
+- `src/pages/POS.tsx` — call `setReceipt(...)` on `holdSale` with `status: "on_hold"`; new `handleIdentified` callback.
+- `src/components/pos/BarcodeScanner.tsx` — capture-image button, "identify by photo" branch, calls edge function.
+- `src/components/Receipt.tsx` — show `[ON HOLD]` banner cleanly (already partially supported).
+- `src/components/ProtectedRoute.tsx` — wrap `Navigate` to drop forwarded ref.
+- `src/pages/Auth.tsx` — same forwardRef-friendly wrap if needed.
+- `src/App.tsx` — `BrowserRouter future={...}` flags.
+- `supabase/functions/identify-product/index.ts` — **new**, calls Lovable AI gateway with image + catalog snippet, returns best match.
+- Per-page small fixes uncovered during QA (scoped by what I find).
+
+---
+
+## Technical notes (for the curious)
+
+**Why iframe instead of popup:**
+```ts
+const iframe = document.createElement("iframe");
+iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+iframe.srcdoc = receiptHtml;
+document.body.appendChild(iframe);
+iframe.onload = () => {
+  iframe.contentWindow!.focus();
+  iframe.contentWindow!.print();
+};
+const cleanup = () => iframe.remove();
+iframe.contentWindow?.addEventListener("afterprint", cleanup);
+setTimeout(cleanup, 60_000); // safety net
+```
+
+**identify-product edge function (sketch):**
+```ts
+// POST { image_base64, candidates: [{id,name,sku}] }
+const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}` },
+  body: JSON.stringify({
+    model: "google/gemini-2.5-flash",
+    messages: [{ role: "user", content: [
+      { type: "text", text: `Pick the best matching product id from this list. Reply JSON {id, confidence}. Candidates: ${JSON.stringify(candidates)}` },
+      { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image_base64}` } },
+    ]}],
+  }),
+});
+```
+
+No new secrets needed — `LOVABLE_API_KEY` already exists.
+
+---
+
+## What I will NOT do in this loop
+
+- True silent printing without the OS dialog (requires kiosk mode or a native bridge — out of scope for a web app).
+- Train a custom image model (using Gemini vision + catalog names is fast and free).
+- Rewrite RLS — current policies look correct; QA pass will only add policies if a 403 surfaces.

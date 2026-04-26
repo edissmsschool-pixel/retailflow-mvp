@@ -8,20 +8,28 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, CheckCircle2, X, RefreshCw } from "lucide-react";
+import { Camera, CheckCircle2, X, RefreshCw, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
+
+type Product = Tables<"products">;
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onDetected: (code: string) => void;
+  /** Called when a product is identified by photo (image-recognition path). */
+  onIdentified?: (product: Product) => void;
 }
 
 /**
- * Camera-based barcode/QR scanner using @zxing/browser.
- * Lazy-loads the library on open to keep the main bundle small.
+ * Camera scanner that does TWO things:
+ *  1. Continuous barcode/QR scanning (zxing).
+ *  2. Snap a still image and ask Lovable AI to identify the product
+ *     against the active catalog when no barcode is on the package.
  */
-export function BarcodeScanner({ open, onClose, onDetected }: Props) {
+export function BarcodeScanner({ open, onClose, onDetected, onIdentified }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const lastHitsRef = useRef<Map<string, number>>(new Map());
@@ -30,6 +38,10 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [lastCode, setLastCode] = useState<string | null>(null);
+  const [identifying, setIdentifying] = useState(false);
+  const [lastMatch, setLastMatch] = useState<{ name: string; image_url: string | null } | null>(
+    null
+  );
 
   // Stop the active stream
   const stop = () => {
@@ -41,7 +53,7 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
     controlsRef.current = null;
   };
 
-  // Start scanning with the chosen device (or default rear camera)
+  // Start scanning with the chosen device
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -53,18 +65,16 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const reader = new BrowserMultiFormatReader();
 
-        // Enumerate cameras (after permission is granted by start call below)
         if (devices.length === 0) {
           try {
             const list = await BrowserMultiFormatReader.listVideoInputDevices();
             if (!cancelled) {
               setDevices(list);
-              // Prefer rear/back camera on mobile
               const back = list.find((d) => /back|rear|environment/i.test(d.label));
               setDeviceId((cur) => cur ?? back?.deviceId ?? list[0]?.deviceId);
             }
           } catch {
-            /* listing may need permission first; ignored */
+            /* listing may need permission first */
           }
         }
 
@@ -78,10 +88,8 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
             const text = result.getText();
             const now = Date.now();
             const last = lastHitsRef.current.get(text) ?? 0;
-            // Per-code debounce: ignore the same code if seen in the last 1.2s.
             if (now - last < 1200) return;
             lastHitsRef.current.set(text, now);
-            // Trim old entries to keep the map small.
             if (lastHitsRef.current.size > 50) {
               for (const [k, v] of lastHitsRef.current) {
                 if (now - v > 5000) lastHitsRef.current.delete(k);
@@ -98,7 +106,6 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
         }
         controlsRef.current = controls;
 
-        // Re-list devices now that we have permission (labels become available)
         if (devices.length === 0 || devices.every((d) => !d.label)) {
           try {
             const list = await BrowserMultiFormatReader.listVideoInputDevices();
@@ -132,6 +139,81 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
     setDeviceId(next.deviceId);
   };
 
+  /** Capture current frame → ask AI to identify against active catalog. */
+  const identifyByPhoto = async () => {
+    const video = videoRef.current;
+    if (!video || identifying) return;
+    setIdentifying(true);
+    setLastMatch(null);
+    try {
+      // Snap frame to canvas
+      const canvas = document.createElement("canvas");
+      const w = video.videoWidth || 640;
+      const h = video.videoHeight || 480;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas unavailable");
+      ctx.drawImage(video, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+
+      // Build candidate list (active catalog only)
+      const { data: candidates, error: catErr } = await supabase
+        .from("products")
+        .select("id,name,sku,image_url")
+        .eq("active", true)
+        .order("name")
+        .limit(200);
+      if (catErr) throw catErr;
+      if (!candidates?.length) {
+        toast.error("No products in catalog to match");
+        return;
+      }
+
+      const { data, error: fnErr } = await supabase.functions.invoke("identify-product", {
+        body: {
+          image_base64: dataUrl,
+          candidates: candidates.map((c) => ({ id: c.id, name: c.name, sku: c.sku })),
+        },
+      });
+      if (fnErr) throw fnErr;
+      const result = data as { product_id: string | null; confidence: number; error?: string };
+      if (result.error) throw new Error(result.error);
+
+      if (!result.product_id || result.confidence < 0.5) {
+        toast.error("Could not identify product. Try another angle.");
+        return;
+      }
+
+      const match = candidates.find((c) => c.id === result.product_id);
+      if (!match) {
+        toast.error("Identified product no longer in catalog");
+        return;
+      }
+
+      // Fetch the full product row for the cart
+      const { data: full } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", match.id)
+        .maybeSingle();
+      if (!full) {
+        toast.error("Product unavailable");
+        return;
+      }
+
+      try { navigator.vibrate?.(80); } catch { /* noop */ }
+      setLastMatch({ name: full.name, image_url: full.image_url });
+      onIdentified?.(full as Product);
+      toast.success(`Identified: ${full.name}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Identification failed";
+      toast.error(msg);
+    } finally {
+      setIdentifying(false);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -146,10 +228,10 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
         <DialogHeader className="text-left">
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-4 w-4 text-primary" />
-            Scan barcode
+            Scan or identify product
           </DialogTitle>
           <DialogDescription>
-            Point your camera at a product barcode. It will be added to the cart automatically.
+            Point at a barcode for instant scan, or snap a photo and let AI identify it.
           </DialogDescription>
         </DialogHeader>
 
@@ -161,7 +243,6 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
             muted
             autoPlay
           />
-          {/* Aiming reticle */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="h-1/3 w-4/5 rounded-lg border-2 border-primary/80 shadow-[0_0_0_9999px_hsl(0_0%_0%/0.35)]" />
           </div>
@@ -180,15 +261,29 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
             </div>
           )}
 
-          {/* Continuous-scan badge */}
           {!starting && !error && (
             <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-white">
               Auto-scan
             </div>
           )}
 
-          {/* Last detection toast inside dialog */}
-          {lastCode && !error && (
+          {identifying && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-sm text-white">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Identifying…
+            </div>
+          )}
+
+          {lastMatch && !error && (
+            <div
+              key={`m-${lastMatch.name}`}
+              className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-primary/90 px-3 py-2 text-xs font-medium text-primary-foreground shadow-elevated animate-in fade-in slide-in-from-bottom-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="truncate">Identified: {lastMatch.name}</span>
+            </div>
+          )}
+          {!lastMatch && lastCode && !error && (
             <div
               key={lastCode + String(lastHitsRef.current.get(lastCode) ?? "")}
               className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-success/90 px-3 py-2 text-xs font-medium text-success-foreground shadow-elevated animate-in fade-in slide-in-from-bottom-2"
@@ -199,18 +294,30 @@ export function BarcodeScanner({ open, onClose, onDetected }: Props) {
           )}
         </div>
 
-        <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+        <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Button
             variant="outline"
-            className="h-12 w-full sm:w-auto"
+            className="h-12"
             onClick={switchCamera}
             disabled={devices.length < 2}
           >
             <RefreshCw className="mr-1 h-4 w-4" />
-            Switch camera
+            Switch
           </Button>
           <Button
-            className="h-12 w-full sm:w-auto"
+            className="h-12"
+            onClick={identifyByPhoto}
+            disabled={identifying || !!error || starting}
+          >
+            {identifying ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-1 h-4 w-4" />
+            )}
+            Snap & identify
+          </Button>
+          <Button
+            className="h-12"
             variant="secondary"
             onClick={() => {
               stop();
