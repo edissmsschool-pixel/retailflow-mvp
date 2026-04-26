@@ -17,10 +17,9 @@ if (typeof window !== "undefined" && "serviceWorker" in navigator) {
   })();
 
   const host = window.location.hostname;
-  const isPreviewHost =
-    host.includes("id-preview--") ||
-    host.includes("lovableproject.com") ||
-    host.includes("lovable.app");
+  // Only block the editor preview (iframe + id-preview-- host).
+  // Published *.lovable.app and custom domains should register the SW.
+  const isPreviewHost = host.startsWith("id-preview--");
 
   if (isInIframe || isPreviewHost) {
     // Clean up any service worker that may have been registered previously
