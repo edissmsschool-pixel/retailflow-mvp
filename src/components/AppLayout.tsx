@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 type Role = "admin" | "manager" | "cashier";
 
@@ -267,6 +268,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
       </main>
 
       <BottomNav visible={visible} />
+      <InstallPrompt />
     </div>
   );
 }
