@@ -1,145 +1,130 @@
-## Goals
+## Scope decisions (from your answers)
 
-1. **Silent / no-popup printing** — receipts auto-print without opening a second window.
-2. **Print on hold + on cash payment of held sale** — cashier always gets a paper trail.
-3. **Image + barcode scanner** — same camera detects barcode AND captures a product photo for visual confirmation.
-4. **Bug sweep + per-page QA** — fix the live `ProtectedRoute` ref warning and verify every page actually loads.
+- **Multi-store**: deferred — not in this round.
+- **Offline mode**: deferred — not in this round.
+- **Product images**: file upload + in-app camera + AI auto-suggest from web by name.
+- **End-of-day**: denomination breakdown + printable Z-report.
 
----
+The remaining requests in this round:
 
-## 1. Silent print via hidden iframe
-
-**Reality check:** browsers cannot bypass the OS print dialog (security). They CAN avoid opening a new window, and Chrome users running with `--kiosk-printing` will print silently to their default printer. The plan delivers the closest-to-silent experience possible from a web app.
-
-Replace the `window.open()` flow in `src/components/pos/ReceiptDialog.tsx` with a hidden `<iframe>` injected into the current page:
-
-```text
-[Confirm Payment] → checkout RPC → loadReceipt()
-                                    ↓
-            <iframe srcdoc=receiptHTML hidden>
-                                    ↓
-            iframe.onload → iframe.contentWindow.print()
-                                    ↓
-            afterprint → remove iframe (no window left behind)
-```
-
-Benefits:
-- No popup blocker issues
-- No flash of a second window
-- Cashier just sees the OS print dialog (or nothing if kiosk-printing is on)
-- Print works on iOS Safari where popups are flaky
-
-The "Print" button in the dialog stays as a manual re-trigger using the same iframe path. Auto-print fires once per new receipt (existing `hasAutoPrintedRef` guard preserved).
+1. Colorful, more polished navigation panel + small UI tightening.
+2. Product image uploads (drag/drop, file picker, camera capture, AI fetch).
+3. Cash reconciliation with denomination counter + printable EOD/Z-report.
+4. Mobile responsiveness pass and full bug sweep.
 
 ---
 
-## 2. Print receipt on hold + on cash payment of held sale
+## 1. Navigation & UI polish
 
-Today: holding does not print, recalling+paying cash does print (auto). Change:
+Update `src/components/AppLayout.tsx` and `src/index.css`:
 
-- **Hold action** (`POS.tsx → holdSale`): after inserting into `held_sales`, build a `ReceiptData` marked with `status: "on_hold"` (already supported by Receipt header) and trigger the silent iframe print. Customer keeps a hold slip showing items and total.
-- **Recall + pay cash**: already auto-prints final receipt; verify it still triggers via the new iframe path (it will, because it goes through the same `setReceipt(...)` → `ReceiptDialog` flow).
+- Give each nav item its own accent color (e.g. POS = orange, Products = blue, Reports = violet, Sales = teal, Shifts = amber, Staff = pink, Settings = slate). Apply via a small `colorClass` field on each NAV item, used for the icon tile background and the active pill.
+- Active nav item: filled gradient pill with white icon + glow, instead of the current low-contrast tint.
+- Mobile bottom nav: each tab gets its own colored "blob" when active (matches the side nav colors); inactive icons remain neutral grey.
+- Top bar: small store name + role badge on the right, subtle gradient bottom border.
+- Add a tiny `OfflineBanner` placeholder using `navigator.onLine` so when the device drops connection the user sees a yellow strip — even without offline checkout, this is useful feedback.
+- No shadcn-sidebar refactor; keep the existing top bar + bottom nav structure (works better for POS).
 
----
+## 2. Product image uploads
 
-## 3. Camera that scans barcode AND product image
+**Storage migration**:
 
-Upgrade `BarcodeScanner.tsx`:
+- Create a public `product-images` bucket via SQL migration.
+- RLS: anyone authenticated can read; only managers/admins can insert/update/delete.
 
-- Add a **"Capture image"** shutter button next to **"Switch camera"**. Pressing it grabs the current video frame to a canvas → produces a data URL.
-- Add an **image-recognition path**: if the scanner runs for ~3s without detecting a barcode, show a "No barcode found — identify by photo?" prompt with a "Snap & identify" button.
-- Call a new edge function **`identify-product`** that takes the captured image (base64) plus a list of catalog product names/SKUs, asks **Lovable AI** (`google/gemini-2.5-flash`, vision-capable, no API key required) to pick the best match, and returns `{ product_id, confidence }`.
-- On match: cashier sees a confirm card with the product image + name + "Add to cart". On no match: toast "Could not identify product".
+**Edge function `suggest-product-image`** (new):
 
-Wiring on the POS side: `handleScanned` already accepts a code; add a parallel `handleIdentified(productId)` that calls `addProduct(p)`. Scanner stays open between scans (already implemented).
+- Input: `{ name: string }`.
+- Calls Lovable AI (`google/gemini-3-flash-preview`) with a prompt asking for a single best public image URL for that product (returns JSON via tool calling: `{ image_url, source }`).
+- Validates the URL, fetches it server-side, uploads to the `product-images` bucket, returns the resulting public URL. This avoids hot-linking external sites.
 
-UI: keep current camera viewport; overlay shows last-detected barcode OR last-identified product chip.
+**`ImageUploader` component** (new — `src/components/products/ImageUploader.tsx`):
 
----
+- Tabs: **Upload**, **Camera**, **AI suggest**.
+- Upload tab: drag/drop + file picker. Validates type (image/*) and size (≤4MB), client-side resizes to max 1024px, uploads to `product-images/{productId or temp-uuid}.webp`.
+- Camera tab: uses `getUserMedia({ video: { facingMode: "environment" } })` to show a live preview + capture button, then runs through the same resize/upload pipeline.
+- AI suggest tab: button that calls `suggest-product-image` with the current name; shows the returned image with Accept/Try again.
+- Shows current image + "Remove" button.
 
-## 4. Live bug fixes
+**Wire into `Products.tsx`**:
 
-From the console snapshot:
+- Add `ImageUploader` inside the edit/new product dialog.
+- Show product thumbnails in the products table (small avatar in the first column).
+- Show the product image in the POS `ProductGrid` cards (already supports `image_url` — verify and fall back to a placeholder).
 
-- **`ProtectedRoute` and `Auth` "Function components cannot be given refs" warnings** — `ProtectedRoute` returns `<Navigate>` directly; React Router 6 forwards refs from parent into children of `Route`. Wrap the `Navigate` and the children with a `Fragment`/`forwardRef` shell so the ref isn't passed to a function component. Same fix in `Auth.tsx`.
-- **React Router v7 future-flag warnings** — add `future={{ v7_startTransition: true, v7_relativeSplatPath: true }}` to `<BrowserRouter>` in `src/App.tsx` to silence and pre-opt-in.
+## 3. Cash reconciliation + EOD Z-report
 
----
+**Schema (small, additive)**:
 
-## 5. Per-page QA pass
+- Add columns to `shifts`:
+  - `expected_cash_breakdown jsonb` (computed)
+  - `counted_cash_breakdown jsonb` (denomination map: `{ "1000": 5, "500": 3, ... }`)
+  - `totals_by_method jsonb` (snapshot at close: cash, transfer, pos_card)
+- Update `close_shift` PG function to also store `totals_by_method` and `counted_cash_breakdown`.
 
-For each route I will: load it logged in as admin, check Network tab for 4xx/5xx, check Console for red errors, exercise the primary action, and patch anything broken.
+**`DenominationCounter` component** (new):
 
-| Page | Primary action exercised | What I'll watch for |
-|---|---|---|
-| /auth | Sign in | Ref warning (fix above) |
-| /dashboard | Loads tiles + chart | Stat tile NaNs, chart errors |
-| /pos | Add → checkout cash → print | Auto-print fires through iframe |
-| /pos | Hold cart | New hold-slip prints |
-| /pos | Camera scan + image identify | Both code & AI paths work |
-| /products | Create + auto-SKU + CSV import | RLS errors, SKU dupe |
-| /sales | List + view receipt | `profiles` join error |
-| /reports | Charts render with data | Currency formatting, empty state |
-| /staff | List + create staff | Admin-only gating |
-| /shifts | Open / close shift | Variance math |
-| /settings | Save store info + push toggle | VAPID key, SW registration |
+- Inputs for ₦1000, 500, 200, 100, 50, 20, 10, 5 (Naira denominations).
+- Auto-sums to the counted total; pushes that into the existing `counted` field.
+- Mobile-friendly: 4×2 grid of large number inputs.
 
-Each issue found becomes a small commit in the same loop.
+**`Shifts.tsx` close dialog**:
 
----
+- Replace single "counted" input with `DenominationCounter`.
+- Show live "Expected" vs "Counted" vs "Variance" panel.
+- Show breakdown by payment method (cash / transfer / POS card) for the open shift, sourced from `sales` query for that shift.
 
-## Files touched
+**Z-report (printable)**:
 
-- `src/components/pos/ReceiptDialog.tsx` — replace popup with hidden iframe; keep manual Print + PDF buttons.
-- `src/pages/POS.tsx` — call `setReceipt(...)` on `holdSale` with `status: "on_hold"`; new `handleIdentified` callback.
-- `src/components/pos/BarcodeScanner.tsx` — capture-image button, "identify by photo" branch, calls edge function.
-- `src/components/Receipt.tsx` — show `[ON HOLD]` banner cleanly (already partially supported).
-- `src/components/ProtectedRoute.tsx` — wrap `Navigate` to drop forwarded ref.
-- `src/pages/Auth.tsx` — same forwardRef-friendly wrap if needed.
-- `src/App.tsx` — `BrowserRouter future={...}` flags.
-- `supabase/functions/identify-product/index.ts` — **new**, calls Lovable AI gateway with image + catalog snippet, returns best match.
-- Per-page small fixes uncovered during QA (scoped by what I find).
+- New `src/components/ZReport.tsx` styled like the receipt (80mm thermal).
+- Sections: store header, cashier, opened/closed times, totals by payment method, # of transactions, refunds, voids, opening float, expected cash, counted cash + denomination breakdown, variance, low-stock items at close, signature line.
+- "Print Z-report" button in the close dialog and on each closed shift row in the table — uses the same `printHtml` helper from `src/lib/print.ts`.
+- "Download CSV" of the current shift's sales also added.
 
----
+**Reports page enhancement**:
 
-## Technical notes (for the curious)
+- Add an **End of Day** tab that auto-loads today's report for the logged-in cashier (or any cashier for managers) — same Z-report layout, printable.
 
-**Why iframe instead of popup:**
-```ts
-const iframe = document.createElement("iframe");
-iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
-iframe.srcdoc = receiptHtml;
-document.body.appendChild(iframe);
-iframe.onload = () => {
-  iframe.contentWindow!.focus();
-  iframe.contentWindow!.print();
-};
-const cleanup = () => iframe.remove();
-iframe.contentWindow?.addEventListener("afterprint", cleanup);
-setTimeout(cleanup, 60_000); // safety net
-```
+## 4. Bug sweep + mobile QA
 
-**identify-product edge function (sketch):**
-```ts
-// POST { image_base64, candidates: [{id,name,sku}] }
-const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-  headers: { Authorization: `Bearer ${LOVABLE_API_KEY}` },
-  body: JSON.stringify({
-    model: "google/gemini-2.5-flash",
-    messages: [{ role: "user", content: [
-      { type: "text", text: `Pick the best matching product id from this list. Reply JSON {id, confidence}. Candidates: ${JSON.stringify(candidates)}` },
-      { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image_base64}` } },
-    ]}],
-  }),
-});
-```
+Items found while reading the code that I'll fix in this round:
 
-No new secrets needed — `LOVABLE_API_KEY` already exists.
+- `Sales.tsx` print button uses `window.print()` which prints the whole page; switch to the `printHtml` iframe helper so only the receipt prints.
+- `POS.tsx` "Start shift" uses `window.prompt`; replace with a small dialog that includes `DenominationCounter` for the opening float.
+- `POS.tsx` cart panel: on small screens (< lg) the bottom action bar can be hidden by the keyboard; add a sticky floating "Checkout" button on mobile when items are in cart.
+- Products table on mobile: switch to a stacked card layout below `sm` breakpoint (current horizontal scroll is hard to use).
+- `BarcodeScanner.tsx`: add a fallback toast when `getUserMedia` is denied or unavailable (some Android in-app browsers).
+- Settings: add store logo upload (re-uses `ImageUploader` against a `store-assets` bucket; logo shows on the receipt and Z-report).
+- Auth: `signUp` redirect URL — verify `emailRedirectTo` is set to `${window.location.origin}/` (currently in `Auth.tsx`).
+- React Query: add `enabled: !!user` guards on a few queries that fire before auth resolves, to avoid initial 401 noise in console.
+
+Mobile QA pass on **POS, Products, Sales, Reports, Shifts, Dashboard, Settings, Auth** at 360px width. Fix any clipped controls or off-screen tables I find while testing.
 
 ---
 
-## What I will NOT do in this loop
+## Files (new)
 
-- True silent printing without the OS dialog (requires kiosk mode or a native bridge — out of scope for a web app).
-- Train a custom image model (using Gemini vision + catalog names is fast and free).
-- Rewrite RLS — current policies look correct; QA pass will only add policies if a 403 surfaces.
+- `supabase/functions/suggest-product-image/index.ts`
+- `src/components/products/ImageUploader.tsx`
+- `src/components/shifts/DenominationCounter.tsx`
+- `src/components/shifts/ZReport.tsx`
+- `src/components/OfflineBanner.tsx`
+- `supabase/migrations/<ts>_product_images_and_shift_breakdown.sql`
+
+## Files (modified)
+
+- `src/components/AppLayout.tsx`, `src/index.css` — colorful nav
+- `src/pages/Products.tsx` — image uploader, mobile cards, thumbnails
+- `src/pages/Shifts.tsx` — denomination counter, Z-report buttons
+- `src/pages/POS.tsx` — better start-shift dialog, sticky mobile checkout
+- `src/pages/Sales.tsx` — proper receipt-only print
+- `src/pages/Settings.tsx` — store logo upload
+- `src/components/pos/ProductGrid.tsx` — fallback image placeholder
+- `supabase/functions/close-shift/index.ts` — accept breakdown payload
+
+## Out of scope (deferred per your answers)
+
+- Multi-store / multi-tenant data scoping.
+- Offline checkout queue or service-worker caching of the app shell beyond what already exists for push.
+
+If approved, I'll implement everything above and do a manual click-through of every page at mobile width before handing back.
