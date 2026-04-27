@@ -323,37 +323,46 @@ export type Database = {
         Row: {
           cashier_id: string
           closed_at: string | null
+          counted_cash_breakdown: Json | null
           counted_cash_kobo: number | null
+          expected_cash_breakdown: Json | null
           expected_cash_kobo: number | null
           id: string
           notes: string | null
           opened_at: string
           opening_float_kobo: number
           status: Database["public"]["Enums"]["shift_status"]
+          totals_by_method: Json | null
           variance_kobo: number | null
         }
         Insert: {
           cashier_id: string
           closed_at?: string | null
+          counted_cash_breakdown?: Json | null
           counted_cash_kobo?: number | null
+          expected_cash_breakdown?: Json | null
           expected_cash_kobo?: number | null
           id?: string
           notes?: string | null
           opened_at?: string
           opening_float_kobo?: number
           status?: Database["public"]["Enums"]["shift_status"]
+          totals_by_method?: Json | null
           variance_kobo?: number | null
         }
         Update: {
           cashier_id?: string
           closed_at?: string | null
+          counted_cash_breakdown?: Json | null
           counted_cash_kobo?: number | null
+          expected_cash_breakdown?: Json | null
           expected_cash_kobo?: number | null
           id?: string
           notes?: string | null
           opened_at?: string
           opening_float_kobo?: number
           status?: Database["public"]["Enums"]["shift_status"]
+          totals_by_method?: Json | null
           variance_kobo?: number | null
         }
         Relationships: [
@@ -504,10 +513,24 @@ export type Database = {
         }
         Returns: undefined
       }
-      close_shift: {
-        Args: { _counted_cash_kobo: number; _notes: string; _shift_id: string }
-        Returns: undefined
-      }
+      close_shift:
+        | {
+            Args: {
+              _counted_cash_kobo: number
+              _notes: string
+              _shift_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _counted_breakdown?: Json
+              _counted_cash_kobo: number
+              _notes: string
+              _shift_id: string
+            }
+            Returns: undefined
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
