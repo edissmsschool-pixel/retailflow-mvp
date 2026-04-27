@@ -13,10 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 type Role = "admin" | "manager" | "cashier";
 
@@ -25,20 +26,31 @@ interface NavItem {
   url: string;
   icon: typeof LayoutDashboard;
   roles?: Role[];
+  /** Tailwind classes for the colored icon tile / active state */
+  tile: string;
+  ring: string;
 }
 
+// Each nav item gets its own brand color — all themable via Tailwind.
 const NAV: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin", "manager"] },
-  { title: "POS", url: "/pos", icon: ShoppingCart },
-  { title: "Products", url: "/products", icon: Package, roles: ["admin", "manager"] },
-  { title: "Sales", url: "/sales", icon: Receipt },
-  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager"] },
-  { title: "Shifts", url: "/shifts", icon: ClipboardList },
-  { title: "Staff", url: "/staff", icon: Users, roles: ["admin"] },
-  { title: "Settings", url: "/settings", icon: SettingsIcon, roles: ["admin"] },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin", "manager"],
+    tile: "bg-gradient-to-br from-emerald-500 to-emerald-600", ring: "ring-emerald-500/30" },
+  { title: "POS", url: "/pos", icon: ShoppingCart,
+    tile: "bg-gradient-to-br from-orange-500 to-amber-500", ring: "ring-orange-500/30" },
+  { title: "Products", url: "/products", icon: Package, roles: ["admin", "manager"],
+    tile: "bg-gradient-to-br from-blue-500 to-indigo-500", ring: "ring-blue-500/30" },
+  { title: "Sales", url: "/sales", icon: Receipt,
+    tile: "bg-gradient-to-br from-teal-500 to-cyan-500", ring: "ring-teal-500/30" },
+  { title: "Reports", url: "/reports", icon: BarChart3, roles: ["admin", "manager"],
+    tile: "bg-gradient-to-br from-violet-500 to-purple-500", ring: "ring-violet-500/30" },
+  { title: "Shifts", url: "/shifts", icon: ClipboardList,
+    tile: "bg-gradient-to-br from-amber-500 to-yellow-500", ring: "ring-amber-500/30" },
+  { title: "Staff", url: "/staff", icon: Users, roles: ["admin"],
+    tile: "bg-gradient-to-br from-pink-500 to-rose-500", ring: "ring-pink-500/30" },
+  { title: "Settings", url: "/settings", icon: SettingsIcon, roles: ["admin"],
+    tile: "bg-gradient-to-br from-slate-500 to-slate-600", ring: "ring-slate-500/30" },
 ];
 
-// 5 most-used items for the mobile bottom nav
 const BOTTOM_NAV_KEYS = ["Dashboard", "POS", "Products", "Sales", "Reports"];
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -57,13 +69,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function SideNav({
-  visible,
-  onNavigate,
-}: {
-  visible: NavItem[];
-  onNavigate?: () => void;
-}) {
+function SideNav({ visible, onNavigate }: { visible: NavItem[]; onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-1 p-3">
       {visible.map((item) => (
@@ -72,10 +78,15 @@ function SideNav({
           to={item.url}
           end={item.url === "/"}
           onClick={onNavigate}
-          className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/70 transition-colors hover:bg-primary/10 hover:text-primary"
-          activeClassName="bg-gradient-to-r from-primary/15 to-primary/5 text-primary shadow-sm"
+          className="group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium text-foreground/75 transition-colors hover:bg-muted"
+          activeClassName="!bg-muted/80 text-foreground font-semibold"
         >
-          <item.icon className="h-[18px] w-[18px] shrink-0" />
+          <span className={cn(
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white shadow-sm transition-transform group-hover:scale-105",
+            item.tile,
+          )}>
+            <item.icon className="h-[18px] w-[18px]" />
+          </span>
           <span>{item.title}</span>
         </NavLink>
       ))}
@@ -83,48 +94,47 @@ function SideNav({
   );
 }
 
-function TopBar({
-  visible,
-  onOpenMobileNav,
-}: {
-  visible: NavItem[];
-  onOpenMobileNav: () => void;
-}) {
+function TopBar({ visible, onOpenMobileNav }: { visible: NavItem[]; onOpenMobileNav: () => void }) {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 glass-strong">
       <div className="container flex h-16 items-center gap-3 px-3 sm:px-6">
-        {/* Mobile hamburger */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 lg:hidden"
-          onClick={onOpenMobileNav}
-          aria-label="Open menu"
-        >
+        <Button variant="ghost" size="icon" className="h-10 w-10 lg:hidden"
+          onClick={onOpenMobileNav} aria-label="Open menu">
           <Menu className="h-5 w-5" />
         </Button>
 
         <Brand />
 
-        {/* Desktop nav */}
         <nav className="ml-6 hidden items-center gap-1 lg:flex">
           {visible.map((item) => (
             <NavLink
               key={item.title}
               to={item.url}
               end={item.url === "/"}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-primary/10 hover:text-primary"
-              activeClassName="bg-primary/10 text-primary"
+              className="group flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted"
+              activeClassName="!bg-muted text-foreground font-semibold"
             >
+              <span className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white shadow-sm",
+                item.tile,
+              )}>
+                <item.icon className="h-3.5 w-3.5" />
+              </span>
               {item.title}
             </NavLink>
           ))}
         </nav>
 
         <div className="flex-1" />
+
+        {roles.length > 0 && (
+          <Badge variant="outline" className="hidden rounded-full border-primary/30 bg-primary/5 text-[10px] capitalize text-primary md:inline-flex">
+            {roles[0]}
+          </Badge>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -166,6 +176,7 @@ function TopBar({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <div className="h-[2px] bg-gradient-to-r from-emerald-500 via-blue-500 to-orange-500 opacity-80" />
     </header>
   );
 }
@@ -175,12 +186,7 @@ function BottomNav({ visible }: { visible: NavItem[] }) {
   const items = BOTTOM_NAV_KEYS
     .map((key) => visible.find((v) => v.title === key))
     .filter(Boolean) as NavItem[];
-
-  // Fallback for cashier-only roles: ensure POS + Sales + Shifts at minimum
-  const safeItems = items.length >= 3
-    ? items
-    : visible.slice(0, 5);
-
+  const safeItems = items.length >= 3 ? items : visible.slice(0, 5);
   if (safeItems.length === 0) return null;
 
   return (
@@ -190,8 +196,7 @@ function BottomNav({ visible }: { visible: NavItem[] }) {
     >
       <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${safeItems.length}, minmax(0, 1fr))` }}>
         {safeItems.map((item) => {
-          const isActive =
-            item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
+          const isActive = item.url === "/" ? location.pathname === "/" : location.pathname.startsWith(item.url);
           const Icon = item.title === "Dashboard" ? Home : item.icon;
           return (
             <NavLink
@@ -204,12 +209,14 @@ function BottomNav({ visible }: { visible: NavItem[] }) {
               <div
                 className={cn(
                   "flex h-9 w-12 items-center justify-center rounded-full transition-all",
-                  isActive && "gradient-primary text-primary-foreground shadow-glow"
+                  isActive
+                    ? cn(item.tile, "text-white shadow-lg ring-4", item.ring)
+                    : "bg-transparent",
                 )}
               >
                 <Icon className="h-[18px] w-[18px]" />
               </div>
-              <span className={cn(isActive && "text-primary")}>{item.title}</span>
+              <span className={cn(isActive && "font-semibold text-foreground")}>{item.title}</span>
             </NavLink>
           );
         })}
@@ -221,16 +228,15 @@ function BottomNav({ visible }: { visible: NavItem[] }) {
 export function AppLayout({ children }: { children?: ReactNode }) {
   const { roles, user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const visible = NAV.filter((i) => !i.roles || i.roles.some((r) => roles.includes(r)));
 
   return (
     <div className="flex min-h-screen w-full flex-col">
+      <OfflineBanner />
       <TopBar visible={visible} onOpenMobileNav={() => setMobileOpen(true)} />
 
-      {/* Mobile slide-in drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-[280px] p-0 border-r-0">
+        <SheetContent side="left" className="w-[300px] p-0 border-r-0">
           <SheetHeader className="border-b border-border/60 p-4 text-left">
             <SheetTitle className="flex items-center justify-between">
               <Brand />
