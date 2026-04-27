@@ -47,10 +47,11 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                   src={p.image_url}
                   alt={p.name}
                   loading="lazy"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                   className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary to-muted">
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent/10 to-secondary">
                   <Package className="h-10 w-10 text-muted-foreground/50" />
                 </div>
               )}
