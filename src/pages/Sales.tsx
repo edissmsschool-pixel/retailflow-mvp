@@ -194,7 +194,7 @@ export default function Sales() {
           <DialogHeader><DialogTitle>Sale #{detail.data?.sale?.sale_number}</DialogTitle></DialogHeader>
           {receiptData && <Receipt data={receiptData} />}
           <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print</Button>
+            <Button variant="outline" onClick={() => receiptData && import("@/lib/print").then((m) => m.printReceiptSilent(receiptData))}><Printer className="mr-2 h-4 w-4" />Print</Button>
             {isManagerOrAdmin && detail.data?.sale && detail.data.sale.status !== "voided" && detail.data.sale.status !== "refunded" && (
               <>
                 <Button variant="outline" onClick={() => setRefundOpen(true)}><RotateCcw className="mr-2 h-4 w-4" />Refund</Button>

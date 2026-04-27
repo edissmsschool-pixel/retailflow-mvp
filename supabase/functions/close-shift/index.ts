@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
     const shift_id = body.shift_id as string;
     const counted_cash_kobo = Math.max(0, Math.floor(Number(body.counted_cash_kobo ?? 0)));
     const notes = (body.notes as string) || "";
+    const counted_breakdown = body.counted_breakdown ?? null;
     if (!shift_id) return json({ error: "Invalid request" }, 400);
 
     const admin = createClient(supabaseUrl, service);
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
       _shift_id: shift_id,
       _counted_cash_kobo: counted_cash_kobo,
       _notes: notes,
+      _counted_breakdown: counted_breakdown,
     });
     if (error) return json({ error: error.message }, 400);
     return json({ ok: true });
