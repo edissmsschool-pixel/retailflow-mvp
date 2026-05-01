@@ -116,7 +116,18 @@ export function BarcodeScanner({ open, onClose, onDetected, onIdentified }: Prop
         }
       } catch (err) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : "Camera unavailable";
+          const raw = err instanceof Error ? err : new Error("Camera unavailable");
+          const name = (raw as { name?: string }).name ?? "";
+          let msg = raw.message || "Camera unavailable";
+          if (/NotAllowed|Permission/i.test(name + msg)) {
+            msg = "Camera permission denied. Allow camera access in your browser site settings, then try again.";
+          } else if (/NotFound|Devices/i.test(name + msg)) {
+            msg = "No camera detected on this device.";
+          } else if (/NotReadable|InUse/i.test(name + msg)) {
+            msg = "Camera is busy. Close other apps using it and retry.";
+          } else if (location.protocol !== "https:" && location.hostname !== "localhost") {
+            msg = "Camera requires a secure (HTTPS) connection.";
+          }
           setError(msg);
           toast.error(msg);
         }
