@@ -9,6 +9,8 @@ interface Props {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
   productName?: string;
+  productBrand?: string;
+  productCategory?: string;
   bucket?: string;
   folder?: string;
 }
@@ -45,7 +47,7 @@ async function fileToResizedWebp(file: File | Blob, maxSize = 1024): Promise<Blo
   });
 }
 
-export function ImageUploader({ value, onChange, productName, bucket = "product-images", folder }: Props) {
+export function ImageUploader({ value, onChange, productName, productBrand, productCategory, bucket = "product-images", folder }: Props) {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"upload" | "camera" | "ai">("upload");
   const [drag, setDrag] = useState(false);
@@ -147,7 +149,11 @@ export function ImageUploader({ value, onChange, productName, bucket = "product-
     setAiPreview(null);
     try {
       const { data, error } = await supabase.functions.invoke("suggest-product-image", {
-        body: { name: productName.trim() },
+        body: {
+          name: productName.trim(),
+          brand: productBrand?.trim() || undefined,
+          category: productCategory?.trim() || undefined,
+        },
       });
       if (error) throw error;
       const result = data as { image_url?: string; error?: string; fallback?: boolean };
