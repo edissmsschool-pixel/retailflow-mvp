@@ -6,15 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { formatNaira } from "@/lib/money";
-import { daysAgoISO, fmtDate } from "@/lib/dates";
-import { Download } from "lucide-react";
+import { daysAgoISO, fmtDate, fmtDateTime, startOfDayISO, endOfDayISO } from "@/lib/dates";
+import { Download, Printer, CalendarClock } from "lucide-react";
 import { downloadCsv } from "@/lib/csv";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import { printZReport, type ZReportData } from "@/components/shifts/ZReport";
 
 const PAY_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--success))"];
 
 export default function Reports() {
+  const [view, setView] = useState<"trends" | "eod">("trends");
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const sinceISO = period === "daily" ? daysAgoISO(13) : period === "weekly" ? daysAgoISO(55) : daysAgoISO(180);
   const grouping = period === "daily" ? 10 : period === "weekly" ? 7 : 7;
