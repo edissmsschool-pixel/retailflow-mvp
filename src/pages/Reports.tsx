@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -286,7 +286,7 @@ function EndOfDayPanel() {
   });
   const topItems = Array.from(productAgg.values()).sort((a, b) => b.qty - a.qty).slice(0, 5);
 
-  const reprintEodForShift = (s: ZReportData["shift_id"] extends string ? Record<string, unknown> : never) => s;
+  
 
   const printAggregateZ = () => {
     const z: ZReportData = {
