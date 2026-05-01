@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,13 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Bell, Loader2 } from "lucide-react";
+import { Bell, Loader2, Upload, Trash2, ImageIcon } from "lucide-react";
 import { pushSupported, getCurrentSubscription, enablePush, disablePush } from "@/lib/push";
 
 export default function Settings() {
-  const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "" });
+  const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "", logo_url: "" });
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const supported = pushSupported();
 
   const settings = useQuery({
@@ -33,6 +35,7 @@ export default function Settings() {
         address: settings.data.address ?? "",
         phone: settings.data.phone ?? "",
         receipt_footer: settings.data.receipt_footer ?? "",
+        logo_url: settings.data.logo_url ?? "",
       });
     }
   }, [settings.data]);
@@ -48,6 +51,39 @@ export default function Settings() {
     toast.success("Settings saved");
   };
 
+  const uploadLogo = async (file: File) => {
+    if (!file.type.startsWith("image/")) return toast.error("Please choose an image file");
+    if (file.size > 3 * 1024 * 1024) return toast.error("Image must be under 3MB");
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("store-assets").upload(path, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("store-assets").getPublicUrl(path);
+      const url = data.publicUrl;
+      const { error: dbErr } = await supabase.from("store_settings").update({ logo_url: url }).eq("id", 1);
+      if (dbErr) throw dbErr;
+      setForm((f) => ({ ...f, logo_url: url }));
+      toast.success("Logo updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Logo upload failed");
+    } finally {
+      setUploadingLogo(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const removeLogo = async () => {
+    const { error } = await supabase.from("store_settings").update({ logo_url: null }).eq("id", 1);
+    if (error) return toast.error(error.message);
+    setForm((f) => ({ ...f, logo_url: "" }));
+    toast.success("Logo removed");
+  };
+
   const togglePush = async (on: boolean) => {
     if (pushBusy) return;
     setPushBusy(true);
@@ -61,19 +97,61 @@ export default function Settings() {
         setPushOn(false);
         toast.success("Push notifications disabled");
       }
-    } catch (e: any) {
-      toast.error(e.message ?? "Could not change notification setting");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not change notification setting";
+      toast.error(msg);
     } finally {
       setPushBusy(false);
     }
   };
 
   return (
-    <div className="container max-w-2xl py-6">
+    <div className="container max-w-2xl px-3 py-4 sm:px-6 sm:py-6">
       <PageHeader title="Store Settings" description="These appear on every receipt." />
 
       <Card className="shadow-card">
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          {/* Logo */}
+          <div className="space-y-2">
+            <Label>Store logo</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border bg-muted/40">
+                {form.logo_url ? (
+                  <img src={form.logo_url} alt="Store logo" className="h-full w-full object-contain" />
+                ) : (
+                  <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploadingLogo}
+                >
+                  {uploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  {form.logo_url ? "Replace logo" : "Upload logo"}
+                </Button>
+                {form.logo_url && (
+                  <Button type="button" variant="ghost" onClick={removeLogo}>
+                    <Trash2 className="mr-2 h-4 w-4" />Remove
+                  </Button>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadLogo(f);
+                  }}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">PNG/JPG, square, under 3MB. Shown on receipts &amp; reports.</p>
+          </div>
+
           <div className="space-y-1.5"><Label>Store name</Label><Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} /></div>
           <div className="space-y-1.5"><Label>Address</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
           <div className="space-y-1.5"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
@@ -113,3 +191,4 @@ export default function Settings() {
     </div>
   );
 }
+

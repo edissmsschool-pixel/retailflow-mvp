@@ -20,6 +20,8 @@ import { CartSummary } from "@/components/pos/CartSummary";
 import { PaymentDialog, type PaymentMethod } from "@/components/pos/PaymentDialog";
 import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
+import { DenominationCounter, type DenominationMap } from "@/components/shifts/DenominationCounter";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type Product = Tables<"products">;
@@ -40,6 +42,10 @@ export default function POS() {
   const [showPayment, setShowPayment] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showStartShift, setShowStartShift] = useState(false);
+  const [openingFloat, setOpeningFloat] = useState("");
+  const [openingFloatBreakdown, setOpeningFloatBreakdown] = useState<Record<string, number>>({});
+  const [openingFloatKobo, setOpeningFloatKobo] = useState(0);
 
   const openShift = useQuery({
     queryKey: ["open-shift", user?.id],
@@ -278,13 +284,20 @@ export default function POS() {
     setShowHeld(false);
   };
 
+  const openStartShift = () => {
+    setOpeningFloat("");
+    setOpeningFloatBreakdown({});
+    setOpeningFloatKobo(0);
+    setShowStartShift(true);
+  };
+
   const startShift = async () => {
     if (!user) return;
-    const float = window.prompt("Opening cash float (₦):", "0");
-    if (float === null) return;
-    const opening_float_kobo = nairaToKobo(float || "0");
+    // Prefer denomination total when any counts entered, else manual input.
+    const opening_float_kobo = openingFloatKobo > 0 ? openingFloatKobo : nairaToKobo(openingFloat || "0");
     const { error } = await supabase.from("shifts").insert({ cashier_id: user.id, opening_float_kobo });
     if (error) return toast.error(error.message);
+    setShowStartShift(false);
     qc.invalidateQueries({ queryKey: ["open-shift"] });
     toast.success("Shift started");
   };
@@ -364,7 +377,7 @@ export default function POS() {
                 {openShift.data ? (
                   <Badge variant="secondary" className="bg-success/10 text-success">Shift open</Badge>
                 ) : (
-                  <Button size="sm" variant="outline" className="h-9" onClick={startShift}>Start shift</Button>
+                  <Button size="sm" variant="outline" className="h-9" onClick={openStartShift}>Start shift</Button>
                 )}
                 <Button size="sm" variant="outline" className="h-9" onClick={() => setShowHeld(true)}>
                   <Bookmark className="mr-1 h-4 w-4" />
@@ -529,6 +542,53 @@ export default function POS() {
         onDetected={handleScanned}
         onIdentified={(p) => addProduct(p as Product)}
       />
+
+      {/* ===== Start shift dialog ===== */}
+      <Dialog open={showStartShift} onOpenChange={setShowStartShift}>
+        <DialogContent className="max-h-[92vh] max-w-md overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Start shift</DialogTitle>
+            <DialogDescription>
+              Count the cash drawer to set the opening float, or enter a manual amount.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block text-sm">Count drawer (denominations)</Label>
+              <DenominationCounter
+                value={openingFloatBreakdown}
+                onChange={(b: DenominationMap, total) => {
+                  setOpeningFloatBreakdown(b);
+                  setOpeningFloatKobo(total);
+                  if (total > 0) setOpeningFloat("");
+                }}
+              />
+            </div>
+            <div className="relative flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" /> OR <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Manual opening float (₦)</Label>
+              <Input
+                inputMode="decimal"
+                placeholder="0"
+                value={openingFloat}
+                onChange={(e) => {
+                  setOpeningFloat(e.target.value);
+                  if (e.target.value) {
+                    setOpeningFloatBreakdown({});
+                    setOpeningFloatKobo(0);
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowStartShift(false)}>Cancel</Button>
+            <Button onClick={startShift}>Start shift</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
