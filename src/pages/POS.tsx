@@ -20,6 +20,8 @@ import { CartSummary } from "@/components/pos/CartSummary";
 import { PaymentDialog, type PaymentMethod } from "@/components/pos/PaymentDialog";
 import { ReceiptDialog } from "@/components/pos/ReceiptDialog";
 import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
+import { DenominationCounter, type DenominationMap } from "@/components/shifts/DenominationCounter";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type Product = Tables<"products">;
@@ -540,6 +542,53 @@ export default function POS() {
         onDetected={handleScanned}
         onIdentified={(p) => addProduct(p as Product)}
       />
+
+      {/* ===== Start shift dialog ===== */}
+      <Dialog open={showStartShift} onOpenChange={setShowStartShift}>
+        <DialogContent className="max-h-[92vh] max-w-md overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Start shift</DialogTitle>
+            <DialogDescription>
+              Count the cash drawer to set the opening float, or enter a manual amount.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block text-sm">Count drawer (denominations)</Label>
+              <DenominationCounter
+                value={openingFloatBreakdown}
+                onChange={(b: DenominationMap, total) => {
+                  setOpeningFloatBreakdown(b);
+                  setOpeningFloatKobo(total);
+                  if (total > 0) setOpeningFloat("");
+                }}
+              />
+            </div>
+            <div className="relative flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" /> OR <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Manual opening float (₦)</Label>
+              <Input
+                inputMode="decimal"
+                placeholder="0"
+                value={openingFloat}
+                onChange={(e) => {
+                  setOpeningFloat(e.target.value);
+                  if (e.target.value) {
+                    setOpeningFloatBreakdown({});
+                    setOpeningFloatKobo(0);
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowStartShift(false)}>Cancel</Button>
+            <Button onClick={startShift}>Start shift</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
