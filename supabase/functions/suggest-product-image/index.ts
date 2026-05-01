@@ -75,20 +75,36 @@ Deno.serve(async (req) => {
     }
     const aiJson = await aiResp.json();
     const args = aiJson?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return json({ error: "AI returned no image" }, 502);
+    if (!args) return json({ error: "AI returned no image", fallback: true }, 200);
     const parsed = JSON.parse(args) as { image_url?: string; source?: string };
     const url = parsed.image_url?.trim();
-    if (!url || !/^https?:\/\//i.test(url)) return json({ error: "Invalid image URL" }, 502);
+    if (!url || !/^https?:\/\//i.test(url)) {
+      return json({ error: "Invalid image URL", fallback: true }, 200);
+    }
 
     // Fetch image server-side
-    const imgResp = await fetch(url, {
-      headers: { "User-Agent": "PerepiriPOS/1.0 (+suggest-product-image)" },
-    });
-    if (!imgResp.ok) return json({ error: `Could not fetch image (${imgResp.status})` }, 502);
+    let imgResp: Response;
+    try {
+      imgResp = await fetch(url, {
+        headers: { "User-Agent": "PerepiriPOS/1.0 (+suggest-product-image)" },
+        redirect: "follow",
+      });
+    } catch (e) {
+      console.error("Image fetch threw", e);
+      return json({ error: "Could not reach image host", fallback: true }, 200);
+    }
+    if (!imgResp.ok) {
+      console.warn("Image fetch not ok", imgResp.status, url);
+      return json({ error: `Could not fetch image (${imgResp.status})`, fallback: true }, 200);
+    }
     const ct = imgResp.headers.get("content-type") || "";
-    if (!ct.startsWith("image/")) return json({ error: "URL is not an image" }, 502);
+    if (!ct.startsWith("image/")) {
+      return json({ error: "URL is not an image", fallback: true }, 200);
+    }
     const buf = new Uint8Array(await imgResp.arrayBuffer());
-    if (buf.byteLength > 6 * 1024 * 1024) return json({ error: "Image too large" }, 502);
+    if (buf.byteLength > 6 * 1024 * 1024) {
+      return json({ error: "Image too large", fallback: true }, 200);
+    }
 
     // Pick extension from content type
     const ext = ct.includes("png") ? "png" : ct.includes("webp") ? "webp" : "jpg";

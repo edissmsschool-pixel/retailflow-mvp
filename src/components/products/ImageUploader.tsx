@@ -150,9 +150,12 @@ export function ImageUploader({ value, onChange, productName, bucket = "product-
         body: { name: productName.trim() },
       });
       if (error) throw error;
-      const url = (data as { image_url?: string })?.image_url;
-      if (!url) throw new Error("No image found");
-      setAiPreview(url);
+      const result = data as { image_url?: string; error?: string; fallback?: boolean };
+      if (result?.fallback || !result?.image_url) {
+        toast.error(result?.error || "Could not find an image. Try uploading one instead.");
+        return;
+      }
+      setAiPreview(result.image_url);
     } catch (e) {
       toast.error((e as Error).message ?? "AI lookup failed");
     } finally {
