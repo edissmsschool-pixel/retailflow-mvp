@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Lock, Printer } from "lucide-react";
 import { DenominationCounter, type DenominationMap } from "@/components/shifts/DenominationCounter";
 import { printZReport, type ZReportData } from "@/components/shifts/ZReport";
+import { fetchReceiptStore } from "@/lib/receiptStore";
 
 interface Shift {
   id: string; cashier_id: string; opening_float_kobo: number; opened_at: string;
