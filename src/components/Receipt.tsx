@@ -15,6 +15,7 @@ export interface ReceiptData {
   store_name: string;
   store_address?: string | null;
   store_phone?: string | null;
+  store_logo_url?: string | null;
   receipt_footer?: string | null;
   sale_number: number | string;
   cashier_name: string;
@@ -33,6 +34,10 @@ export const Receipt = forwardRef<HTMLDivElement, { data: ReceiptData }>(({ data
   return (
     <div id="print-receipt" ref={ref} className="mx-auto max-w-[80mm] bg-card p-4 font-mono text-xs text-foreground">
       <div className="text-center">
+        {data.store_logo_url && (
+          <img src={data.store_logo_url} alt={data.store_name}
+            className="mx-auto mb-1 h-12 w-12 object-contain" />
+        )}
         <div className="text-sm font-bold uppercase">{data.store_name}</div>
         {data.store_address && <div>{data.store_address}</div>}
         {data.store_phone && <div>Tel: {data.store_phone}</div>}

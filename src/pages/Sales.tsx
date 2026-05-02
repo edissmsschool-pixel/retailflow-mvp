@@ -13,6 +13,7 @@ import { formatNaira } from "@/lib/money";
 import { fmtDateTime, startOfDayISO, endOfDayISO, daysAgoISO } from "@/lib/dates";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchReceiptStore } from "@/lib/receiptStore";
 import { toast } from "sonner";
 import { Eye, Printer, RotateCcw, XCircle, Download } from "lucide-react";
 import { downloadCsv } from "@/lib/csv";
@@ -54,10 +55,11 @@ export default function Sales() {
     queryFn: async () => {
       const { data: sale } = await supabase.from("sales").select("*, profiles:cashier_id(full_name)").eq("id", open!).single();
       const { data: items } = await supabase.from("sale_items").select("*").eq("sale_id", open!).order("created_at");
-      const { data: settings } = await supabase.from("store_settings").select("*").eq("id", 1).single();
+      const settings = await fetchReceiptStore();
       return { sale, items: items ?? [], settings };
     },
   });
+
 
   const receiptData: ReceiptData | null = useMemo(() => {
     if (!detail.data?.sale || !detail.data.settings) return null;
@@ -68,6 +70,7 @@ export default function Sales() {
       store_address: detail.data.settings.address,
       store_phone: detail.data.settings.phone,
       receipt_footer: detail.data.settings.receipt_footer,
+      store_logo_url: detail.data.settings.logo_url,
       sale_number: s.sale_number,
       cashier_name: cashierName,
       created_at: s.created_at,

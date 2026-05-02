@@ -84,6 +84,7 @@ export function buildReceiptHtml(d: ReceiptData): string {
 <body>
   <div class="receipt">
     <div class="center">
+      ${d.store_logo_url ? `<img src="${esc(d.store_logo_url)}" alt="" style="max-height:48px;max-width:60mm;object-fit:contain;margin-bottom:4px;" />` : ""}
       <div class="bold upper" style="font-size:13px;">${esc(d.store_name)}</div>
       ${d.store_address ? `<div class="small">${esc(d.store_address)}</div>` : ""}
       ${d.store_phone ? `<div class="small">Tel: ${esc(d.store_phone)}</div>` : ""}

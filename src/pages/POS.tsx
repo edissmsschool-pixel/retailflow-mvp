@@ -23,6 +23,7 @@ import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { DenominationCounter, type DenominationMap } from "@/components/shifts/DenominationCounter";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { fetchReceiptStore } from "@/lib/receiptStore";
 
 type Product = Tables<"products">;
 type Category = Tables<"categories">;
@@ -202,14 +203,15 @@ export default function POS() {
   const loadReceipt = async (saleId: string) => {
     const { data: sale } = await supabase.from("sales").select("*, profiles:cashier_id(full_name)").eq("id", saleId).single();
     const { data: items } = await supabase.from("sale_items").select("*").eq("sale_id", saleId).order("created_at");
-    const { data: settings } = await supabase.from("store_settings").select("*").eq("id", 1).single();
-    if (!sale || !items || !settings) return;
+    const settings = await fetchReceiptStore();
+    if (!sale || !items) return;
     const cashierName = (sale as unknown as { profiles?: { full_name?: string } }).profiles?.full_name || "";
     setReceipt({
       store_name: settings.store_name,
       store_address: settings.address,
       store_phone: settings.phone,
       receipt_footer: settings.receipt_footer,
+      store_logo_url: settings.logo_url,
       sale_number: sale.sale_number,
       cashier_name: cashierName,
       created_at: sale.created_at,
@@ -235,11 +237,7 @@ export default function POS() {
 
     // Build a hold-slip receipt and trigger silent auto-print so the customer
     // walks away with a paper record of what is being held.
-    const { data: settings } = await supabase
-      .from("store_settings")
-      .select("*")
-      .eq("id", 1)
-      .single();
+    const settings = await fetchReceiptStore();
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name")
@@ -251,6 +249,7 @@ export default function POS() {
         store_address: settings.address,
         store_phone: settings.phone,
         receipt_footer: `HOLD SLIP — ${label}\n${settings.receipt_footer ?? ""}`,
+        store_logo_url: settings.logo_url,
         sale_number: `HOLD-${Date.now().toString().slice(-6)}`,
         cashier_name: profile?.full_name || "",
         created_at: new Date().toISOString(),

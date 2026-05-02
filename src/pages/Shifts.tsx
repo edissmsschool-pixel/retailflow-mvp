@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Lock, Printer } from "lucide-react";
 import { DenominationCounter, type DenominationMap } from "@/components/shifts/DenominationCounter";
 import { printZReport, type ZReportData } from "@/components/shifts/ZReport";
+import { fetchReceiptStore } from "@/lib/receiptStore";
 
 interface Shift {
   id: string; cashier_id: string; opening_float_kobo: number; opened_at: string;
@@ -89,12 +90,12 @@ export default function Shifts() {
     if (error) return toast.error(error.message);
 
     // Build & print Z-report
-    const { data: settings } = await supabase.from("store_settings").select("*").eq("id", 1).single();
+    const settings = await fetchReceiptStore();
     const txnCount = (liveSales.data ?? []).length;
     const z: ZReportData = {
-      store_name: settings?.store_name ?? "Store",
-      store_address: settings?.address,
-      store_phone: settings?.phone,
+      store_name: settings.store_name,
+      store_address: settings.address,
+      store_phone: settings.phone,
       cashier_name: closing.profiles?.full_name ?? "",
       shift_id: closing.id,
       opened_at: closing.opened_at,
@@ -119,15 +120,15 @@ export default function Shifts() {
   };
 
   const reprintZ = async (s: Shift) => {
-    const { data: settings } = await supabase.from("store_settings").select("*").eq("id", 1).single();
+    const settings = await fetchReceiptStore();
     const { data: salesData } = await supabase.from("sales")
       .select("total_kobo, payment_method, status").eq("shift_id", s.id).neq("status", "voided");
     const txnCount = (salesData ?? []).length;
     const totals = s.totals_by_method ?? {};
     const z: ZReportData = {
-      store_name: settings?.store_name ?? "Store",
-      store_address: settings?.address,
-      store_phone: settings?.phone,
+      store_name: settings.store_name,
+      store_address: settings.address,
+      store_phone: settings.phone,
       cashier_name: s.profiles?.full_name ?? "",
       shift_id: s.id,
       opened_at: s.opened_at,

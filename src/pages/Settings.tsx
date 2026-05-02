@@ -11,6 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Bell, Loader2, Upload, Trash2, ImageIcon } from "lucide-react";
 import { pushSupported, getCurrentSubscription, enablePush, disablePush } from "@/lib/push";
+import { StoresManager } from "@/components/settings/StoresManager";
+import { IdleLockSettings } from "@/components/settings/IdleLockSettings";
 
 export default function Settings() {
   const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "", logo_url: "" });
@@ -188,6 +190,14 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <StoresManager />
+      </div>
+
+      <div className="mt-6">
+        <IdleLockSettings />
+      </div>
     </div>
   );
 }

@@ -261,8 +261,8 @@ function EndOfDayPanel() {
   const settings = useQuery({
     queryKey: ["eod-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("store_settings").select("*").eq("id", 1).single();
-      return data;
+      const { fetchReceiptStore } = await import("@/lib/receiptStore");
+      return await fetchReceiptStore();
     },
   });
 
