@@ -23,6 +23,7 @@ import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { DenominationCounter, type DenominationMap } from "@/components/shifts/DenominationCounter";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { fetchReceiptStore } from "@/lib/receiptStore";
 
 type Product = Tables<"products">;
 type Category = Tables<"categories">;

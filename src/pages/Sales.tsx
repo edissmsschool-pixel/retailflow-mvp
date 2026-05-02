@@ -54,8 +54,20 @@ export default function Sales() {
     queryFn: async () => {
       const { data: sale } = await supabase.from("sales").select("*, profiles:cashier_id(full_name)").eq("id", open!).single();
       const { data: items } = await supabase.from("sale_items").select("*").eq("sale_id", open!).order("created_at");
-      const { data: settings } = await supabase.from("store_settings").select("*").eq("id", 1).single();
+      const settings = await fetchReceiptStore();
       return { sale, items: items ?? [], settings };
+    },
+  });
+
+  const receiptData: ReceiptData | null = useMemo(() => {
+    if (!detail.data?.sale || !detail.data.settings) return null;
+    const s = detail.data.sale;
+    const cashierName = (s as unknown as { profiles?: { full_name?: string } }).profiles?.full_name || "";
+    return {
+      store_name: detail.data.settings.store_name,
+      store_address: detail.data.settings.address,
+      store_phone: detail.data.settings.phone,
+      receipt_footer: detail.data.settings.receipt_footer,
     },
   });
 
