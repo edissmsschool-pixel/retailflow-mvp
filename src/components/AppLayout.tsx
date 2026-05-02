@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { useActiveStore } from "@/hooks/useActiveStore";
 
 type Role = "admin" | "manager" | "cashier";
 
@@ -54,15 +55,22 @@ const NAV: NavItem[] = [
 const BOTTOM_NAV_KEYS = ["Dashboard", "POS", "Products", "Sales", "Reports"];
 
 function Brand({ compact = false }: { compact?: boolean }) {
+  const { data: store } = useActiveStore();
+  const name = store?.name || "Perepiri";
+  const subtitle = store?.address || "Food Mart";
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl gradient-primary text-primary-foreground shadow-glow">
-        <Store className="h-5 w-5" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl gradient-primary text-primary-foreground shadow-glow">
+        {store?.logo_url ? (
+          <img src={store.logo_url} alt={`${name} logo`} className="h-full w-full object-contain" />
+        ) : (
+          <Store className="h-5 w-5" />
+        )}
       </div>
       {!compact && (
         <div className="leading-tight">
-          <div className="font-display text-[15px] font-bold tracking-tight">Perepiri</div>
-          <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Food Mart</div>
+          <div className="font-display text-[15px] font-bold tracking-tight truncate max-w-[140px]">{name}</div>
+          <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground truncate max-w-[140px]">{subtitle}</div>
         </div>
       )}
     </div>
