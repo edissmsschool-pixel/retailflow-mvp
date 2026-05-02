@@ -13,6 +13,7 @@ import { formatNaira } from "@/lib/money";
 import { fmtDateTime, startOfDayISO, endOfDayISO, daysAgoISO } from "@/lib/dates";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchReceiptStore } from "@/lib/receiptStore";
 import { toast } from "sonner";
 import { Eye, Printer, RotateCcw, XCircle, Download } from "lucide-react";
 import { downloadCsv } from "@/lib/csv";
