@@ -62,13 +62,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "held_sales_cashier_id_profiles_fkey"
-            columns: ["cashier_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       products: {
@@ -304,13 +297,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sales_cashier_id_profiles_fkey"
-            columns: ["cashier_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sales_shift_id_fkey"
             columns: ["shift_id"]
             isOneToOne: false
@@ -368,13 +354,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shifts_cashier_id_fkey"
-            columns: ["cashier_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shifts_cashier_id_profiles_fkey"
             columns: ["cashier_id"]
             isOneToOne: false
             referencedRelation: "profiles"

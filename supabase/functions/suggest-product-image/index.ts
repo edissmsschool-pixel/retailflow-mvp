@@ -113,27 +113,30 @@ Deno.serve(async (req) => {
     // Step 2: build a precise studio prompt and generate the image.
     const styleByShot: Record<string, string> = {
       product_pack:
-        "professional studio product photography, packshot, perfectly centred, label clearly readable, soft even lighting, subtle reflection, pure white seamless background",
+        "professional studio product photography, packshot, perfectly centred, label clearly readable, soft even lighting, sharp focus",
       fresh_produce:
-        "fresh produce on a clean white background, natural daylight, crisp focus, vibrant natural colours",
+        "fresh produce, natural daylight, crisp focus, vibrant natural colours",
       prepared_food:
-        "appetising food photography on a simple white plate, top-down or 45-degree angle, soft daylight, white background",
+        "appetising food photography, top-down or 45-degree angle, soft daylight",
       apparel:
-        "flat lay apparel photography on a pure white background, neatly arranged, soft shadow, true-to-life colours",
+        "flat lay apparel photography, neatly arranged, true-to-life colours",
       electronics:
-        "consumer electronics product shot, three-quarter angle, glossy finish, soft studio lighting, white background",
+        "consumer electronics product shot, three-quarter angle, glossy finish, soft studio lighting",
       generic:
-        "clean product photo on a pure white background, soft studio lighting, sharp focus",
+        "clean product photo, soft studio lighting, sharp focus",
     };
     const colorHint = colors.length ? `Dominant packaging colours: ${colors.join(", ")}.` : "";
     const packHint = packaging ? `Packaging: ${packaging}.` : "";
 
+    // Request a cut-out PNG with a transparent background (similar to the
+    // "transparent PNG" results you find via Google image search).
     const imagePrompt = [
-      `High-resolution product photo of: ${descriptor}.`,
+      `High-resolution product cut-out of: ${descriptor}.`,
       packHint,
       colorHint,
       styleByShot[shot] ?? styleByShot.generic,
-      "No text overlays, no watermarks, no extra props, no people, no hands, single product only, square 1:1 framing.",
+      "Isolated subject on a fully transparent background (alpha channel), no backdrop, no shadow on a surface, clean edges suitable for compositing.",
+      "Output a PNG with transparency. Single product only. No text overlays, no watermarks, no extra props, no people, no hands. Square 1:1 framing.",
     ]
       .filter(Boolean)
       .join(" ");
