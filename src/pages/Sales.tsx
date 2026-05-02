@@ -70,6 +70,7 @@ export default function Sales() {
       store_address: detail.data.settings.address,
       store_phone: detail.data.settings.phone,
       receipt_footer: detail.data.settings.receipt_footer,
+      store_logo_url: detail.data.settings.logo_url,
       sale_number: s.sale_number,
       cashier_name: cashierName,
       created_at: s.created_at,
