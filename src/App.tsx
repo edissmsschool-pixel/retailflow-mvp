@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { IdleLock } from "@/components/IdleLock";
 
 import Auth from "./pages/Auth";
 import Index from "./pages/Index";
@@ -32,6 +33,7 @@ const App = () => (
         future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
       >
         <AuthProvider>
+          <IdleLock />
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
