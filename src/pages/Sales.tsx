@@ -59,17 +59,6 @@ export default function Sales() {
     },
   });
 
-  const receiptData: ReceiptData | null = useMemo(() => {
-    if (!detail.data?.sale || !detail.data.settings) return null;
-    const s = detail.data.sale;
-    const cashierName = (s as unknown as { profiles?: { full_name?: string } }).profiles?.full_name || "";
-    return {
-      store_name: detail.data.settings.store_name,
-      store_address: detail.data.settings.address,
-      store_phone: detail.data.settings.phone,
-      receipt_footer: detail.data.settings.receipt_footer,
-    },
-  });
 
   const receiptData: ReceiptData | null = useMemo(() => {
     if (!detail.data?.sale || !detail.data.settings) return null;
