@@ -305,7 +305,7 @@ export default function POS() {
 
   // ---------- Cart panel (shared between desktop sidebar and mobile sheet) ----------
   const CartPanel = (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between px-1 pb-2">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-4 w-4 text-primary" />
@@ -318,7 +318,7 @@ export default function POS() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground hover:text-destructive"
+            className="h-9 text-xs text-muted-foreground hover:text-destructive"
             onClick={clearCart}
           >
             <Trash2 className="mr-1 h-3 w-3" />Clear
@@ -326,7 +326,7 @@ export default function POS() {
         )}
       </div>
 
-      <ScrollArea className="-mx-1 flex-1 px-1">
+      <ScrollArea className="-mx-1 min-h-0 flex-1 px-1">
         <CartList
           cart={cart}
           onUpdateQty={updateQty}
@@ -336,30 +336,32 @@ export default function POS() {
         />
       </ScrollArea>
 
-      <CartSummary
-        itemCount={itemCount}
-        subtotalKobo={subtotalKobo}
-        saleDiscount={saleDiscount}
-        onSaleDiscountChange={setSaleDiscount}
-        totalKobo={totalKobo}
-      />
+      <div className="sticky bottom-0 -mx-4 mt-2 border-t border-border/50 bg-background/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <CartSummary
+          itemCount={itemCount}
+          subtotalKobo={subtotalKobo}
+          saleDiscount={saleDiscount}
+          onSaleDiscountChange={setSaleDiscount}
+          totalKobo={totalKobo}
+        />
 
-      <div className="mt-3 flex gap-2">
-        <Button
-          variant="outline"
-          className="h-12 flex-1"
-          disabled={!cart.length}
-          onClick={holdSale}
-        >
-          <BookmarkPlus className="mr-1 h-4 w-4" />Hold
-        </Button>
-        <Button
-          className="h-12 flex-[2] text-base font-semibold shadow-elevated"
-          disabled={!cart.length}
-          onClick={() => setShowPayment(true)}
-        >
-          Checkout • {formatNaira(totalKobo)}
-        </Button>
+        <div className="mt-3 flex gap-2">
+          <Button
+            variant="outline"
+            className="h-14 flex-1"
+            disabled={!cart.length}
+            onClick={holdSale}
+          >
+            <BookmarkPlus className="mr-1 h-4 w-4" />Hold
+          </Button>
+          <Button
+            className="h-14 flex-[2] text-base font-semibold shadow-elevated"
+            disabled={!cart.length}
+            onClick={() => setShowPayment(true)}
+          >
+            Checkout • {formatNaira(totalKobo)}
+          </Button>
+        </div>
       </div>
     </div>
   );
