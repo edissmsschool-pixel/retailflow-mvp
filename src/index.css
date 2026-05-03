@@ -135,8 +135,15 @@
   .gradient-primary { background: var(--gradient-primary); }
   .gradient-accent { background: var(--gradient-accent); }
   .gradient-success { background: var(--gradient-success); }
+  .gradient-mesh { background: var(--gradient-mesh); }
   .text-gradient-primary {
     background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .text-gradient-rainbow {
+    background: linear-gradient(90deg, hsl(152 65% 36%), hsl(195 90% 45%), hsl(265 70% 55%), hsl(22 95% 55%));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -144,6 +151,28 @@
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  /* Colorful decorative blobs for page backgrounds */
+  .bg-blobs::before,
+  .bg-blobs::after {
+    content: "";
+    position: fixed;
+    pointer-events: none;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.45;
+    z-index: -1;
+  }
+  .bg-blobs::before {
+    width: 28rem; height: 28rem;
+    top: -8rem; right: -6rem;
+    background: linear-gradient(135deg, hsl(22 95% 60%), hsl(340 90% 65%));
+  }
+  .bg-blobs::after {
+    width: 26rem; height: 26rem;
+    bottom: -8rem; left: -6rem;
+    background: linear-gradient(135deg, hsl(195 90% 55%), hsl(265 75% 60%));
+  }
 
   /* Glassmorphism surfaces */
   .glass {
