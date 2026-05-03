@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { formatNaira } from "@/lib/money";
 import { Tables } from "@/integrations/supabase/types";
-import { Package } from "lucide-react";
+import { Package, Plus } from "lucide-react";
 
 type Product = Tables<"products">;
 
@@ -14,9 +14,9 @@ interface Props {
 export function ProductGrid({ products, loading, onAdd }: Props) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-44 animate-pulse rounded-2xl bg-muted" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted sm:h-44" />
         ))}
       </div>
     );
@@ -30,7 +30,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {products.map((p) => {
         const out = p.stock_qty <= 0;
         const low = !out && p.stock_qty <= p.reorder_level;
@@ -39,9 +39,10 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
             key={p.id}
             onClick={() => onAdd(p)}
             disabled={out}
-            className="group relative flex min-h-[12rem] flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={`Add ${p.name} to cart`}
+            className="group relative flex min-h-[5rem] w-full flex-row items-stretch overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[12rem] sm:flex-col"
           >
-            <div className="relative aspect-square w-full overflow-hidden bg-muted">
+            <div className="relative aspect-square w-24 shrink-0 overflow-hidden bg-muted sm:w-full">
               {p.image_url ? (
                 <img
                   src={p.image_url}
@@ -52,28 +53,31 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent/10 to-secondary">
-                  <Package className="h-10 w-10 text-muted-foreground/50" />
+                  <Package className="h-8 w-8 text-muted-foreground/50" />
                 </div>
               )}
               {out && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/70">
-                  <Badge variant="destructive">Out of stock</Badge>
+                  <Badge variant="destructive" className="text-[10px]">Out</Badge>
                 </div>
               )}
               {low && !out && (
-                <Badge variant="secondary" className="absolute right-2 top-2 bg-warning/90 text-warning-foreground">
-                  Low: {p.stock_qty}
+                <Badge variant="secondary" className="absolute right-1 top-1 bg-warning/90 px-1.5 py-0 text-[10px] text-warning-foreground">
+                  {p.stock_qty}
                 </Badge>
               )}
             </div>
             <div className="flex flex-1 flex-col justify-between gap-1 p-3">
               <div className="line-clamp-2 text-sm font-medium leading-tight">{p.name}</div>
-              <div className="flex items-end justify-between">
+              <div className="flex items-end justify-between gap-2">
                 <span className="font-display text-base font-bold tabular-nums text-primary">
                   {formatNaira(p.sell_price_kobo)}
                 </span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground sm:hidden">
+                  <Plus className="h-4 w-4" />
+                </span>
                 {!low && !out && (
-                  <span className="text-[10px] tabular-nums text-muted-foreground">×{p.stock_qty}</span>
+                  <span className="hidden text-[10px] tabular-nums text-muted-foreground sm:inline">×{p.stock_qty}</span>
                 )}
               </div>
             </div>
