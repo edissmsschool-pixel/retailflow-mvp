@@ -60,10 +60,14 @@
     --gradient-primary: linear-gradient(135deg, hsl(152 65% 26%), hsl(145 55% 45%));
     --gradient-accent: linear-gradient(135deg, hsl(22 95% 55%), hsl(32 100% 62%));
     --gradient-success: linear-gradient(135deg, hsl(152 60% 36%), hsl(145 55% 50%));
-    --gradient-app: radial-gradient(1200px 600px at 0% 0%, hsl(145 55% 92% / 0.7), transparent 50%),
-                    radial-gradient(900px 500px at 100% 0%, hsl(32 100% 92% / 0.5), transparent 55%),
-                    linear-gradient(180deg, hsl(140 35% 97%), hsl(140 30% 98%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100% / 0.85), hsl(140 30% 98% / 0.7));
+    --gradient-app: radial-gradient(900px 500px at 0% 0%, hsl(145 70% 85% / 0.55), transparent 55%),
+                    radial-gradient(800px 500px at 100% 0%, hsl(32 100% 85% / 0.45), transparent 60%),
+                    radial-gradient(700px 500px at 50% 100%, hsl(265 80% 88% / 0.40), transparent 60%),
+                    radial-gradient(600px 400px at 0% 100%, hsl(195 90% 85% / 0.40), transparent 60%),
+                    radial-gradient(600px 400px at 100% 60%, hsl(340 90% 88% / 0.35), transparent 60%),
+                    linear-gradient(180deg, hsl(140 35% 98%), hsl(220 40% 98%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100% / 0.88), hsl(140 30% 98% / 0.72));
+    --gradient-mesh: conic-gradient(from 180deg at 50% 50%, hsl(152 70% 55% / 0.18), hsl(22 95% 60% / 0.18), hsl(265 80% 65% / 0.18), hsl(195 90% 60% / 0.18), hsl(152 70% 55% / 0.18));
 
     --shadow-elevated: 0 18px 40px -18px hsl(152 65% 26% / 0.28);
     --shadow-card: 0 1px 2px hsl(155 35% 12% / 0.04), 0 8px 24px hsl(155 35% 12% / 0.06);
