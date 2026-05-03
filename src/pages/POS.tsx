@@ -438,8 +438,8 @@ export default function POS() {
               ))}
             </div>
           </CardHeader>
-          <CardContent className="pb-24 lg:pb-6">
-            <ScrollArea className="h-[calc(100vh-22rem)] lg:h-[calc(100vh-19rem)]">
+          <CardContent className="pb-32 lg:pb-6">
+            <ScrollArea className="h-[calc(100vh-26rem)] lg:h-[calc(100vh-19rem)]">
               <div className="pr-2">
                 <ProductGrid
                   products={products.data}
