@@ -239,7 +239,7 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   const visible = NAV.filter((i) => !i.roles || i.roles.some((r) => roles.includes(r)));
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
+    <div className="bg-blobs flex min-h-screen w-full flex-col">
       <OfflineBanner />
       <TopBar visible={visible} onOpenMobileNav={() => setMobileOpen(true)} />
 
