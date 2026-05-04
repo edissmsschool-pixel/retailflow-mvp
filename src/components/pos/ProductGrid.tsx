@@ -30,7 +30,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
       {products.map((p) => {
         const out = p.stock_qty <= 0;
         const low = !out && p.stock_qty <= p.reorder_level;
@@ -40,9 +40,9 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
             onClick={() => onAdd(p)}
             disabled={out}
             aria-label={`Add ${p.name} to cart`}
-            className="group relative flex min-h-[5rem] w-full flex-row items-stretch overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[12rem] sm:flex-col"
+            className="group relative flex min-h-[4.5rem] w-full flex-row items-stretch overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[12rem] sm:flex-col"
           >
-            <div className="relative aspect-square w-24 shrink-0 overflow-hidden bg-muted sm:w-full">
+            <div className="relative aspect-square w-20 shrink-0 overflow-hidden bg-muted sm:w-full">
               {p.image_url ? (
                 <img
                   src={p.image_url}
@@ -53,7 +53,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent/10 to-secondary">
-                  <Package className="h-8 w-8 text-muted-foreground/50" />
+                  <Package className="h-7 w-7 text-muted-foreground/50" />
                 </div>
               )}
               {out && (
@@ -61,34 +61,29 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                   <Badge variant="destructive" className="text-[10px]">Out</Badge>
                 </div>
               )}
-              {low && !out && (
-                <Badge variant="secondary" className="absolute right-1 top-1 bg-warning/90 px-1.5 py-0 text-[10px] text-warning-foreground">
-                  {p.stock_qty}
-                </Badge>
-              )}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-3">
-              <div className="line-clamp-2 text-sm font-medium leading-tight">{p.name}</div>
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <span className="font-display text-base font-bold tabular-nums text-primary">
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-2.5 sm:p-3">
+              <div className="line-clamp-2 text-[13px] font-medium leading-tight sm:text-sm">{p.name}</div>
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                <span className="font-display text-[15px] font-bold tabular-nums text-primary sm:text-base">
                   {formatNaira(p.sell_price_kobo)}
                 </span>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground sm:hidden">
+                <Badge
+                  variant="secondary"
+                  className={
+                    out
+                      ? "bg-destructive/15 px-1.5 py-0 text-[10px] font-medium text-destructive"
+                      : low
+                        ? "bg-warning/20 px-1.5 py-0 text-[10px] font-medium text-warning-foreground"
+                        : "bg-muted px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
+                  }
+                >
+                  {out ? "Out" : `${p.stock_qty} in stock`}
+                </Badge>
+                <span className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground sm:hidden">
                   <Plus className="h-4 w-4" />
                 </span>
               </div>
-              <Badge
-                variant="secondary"
-                className={
-                  out
-                    ? "w-fit bg-destructive/15 px-2 py-0 text-[10px] font-medium text-destructive"
-                    : low
-                      ? "w-fit bg-warning/15 px-2 py-0 text-[10px] font-medium text-warning-foreground"
-                      : "w-fit bg-muted px-2 py-0 text-[10px] font-medium text-muted-foreground"
-                }
-              >
-                {out ? "Out of stock" : `${p.stock_qty} in stock`}
-              </Badge>
             </div>
           </button>
         );

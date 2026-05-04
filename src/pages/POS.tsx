@@ -373,8 +373,8 @@ export default function POS() {
         <Card className="shadow-card">
           <CardHeader className="space-y-3 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">Point of Sale</CardTitle>
-              <div className="flex items-center gap-2">
+              <CardTitle className="hidden text-base sm:block">Point of Sale</CardTitle>
+              <div className="ml-auto flex items-center gap-2">
                 {openShift.data ? (
                   <Badge variant="secondary" className="bg-success/10 text-success">Shift open</Badge>
                 ) : (
@@ -395,14 +395,14 @@ export default function POS() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                  className="h-12 pl-10 text-base"
+                  className="h-11 pl-10 text-base sm:h-12"
                   autoFocus
                 />
               </div>
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 w-12 shrink-0 p-0"
+                className="h-11 w-11 shrink-0 p-0 sm:h-12 sm:w-12"
                 aria-label="Scan barcode with camera"
                 onClick={() => setShowScanner(true)}
               >
@@ -414,7 +414,7 @@ export default function POS() {
               <button
                 onClick={() => setCategoryId("all")}
                 className={cn(
-                  "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition active:scale-95",
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95 sm:px-4 sm:py-2",
                   categoryId === "all"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card hover:border-primary/40"
@@ -427,7 +427,7 @@ export default function POS() {
                   key={c.id}
                   onClick={() => setCategoryId(c.id)}
                   className={cn(
-                    "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition active:scale-95",
+                    "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95 sm:px-4 sm:py-2",
                     categoryId === c.id
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card hover:border-primary/40"
@@ -460,11 +460,11 @@ export default function POS() {
       </div>
 
       {/* ===== Mobile sticky checkout bar (sits above bottom nav) ===== */}
-      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong p-3 shadow-elevated lg:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
+      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated lg:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
         <Sheet open={showCart} onOpenChange={setShowCart}>
           <SheetTrigger asChild>
             <Button
-              className="h-14 w-full justify-between text-base font-semibold shadow-elevated"
+              className="h-12 w-full justify-between text-sm font-semibold shadow-elevated"
               disabled={!cart.length && itemCount === 0}
             >
               <span className="flex items-center gap-2">

@@ -1,32 +1,37 @@
-## Goal
+## Mobile screen analysis (360px viewport, POS page)
 
-1. Eliminate any horizontal scrolling on small screens across the app.
-2. Always display stock quantity on every product card in the POS catalog (not just for low-stock items).
+Reviewing the screenshot:
 
-## Changes
+**Working well**
+- No horizontal page scroll. Header brand truncates cleanly.
+- Stock pill renders on every card ("24 in stock", "6 in stock").
+- Sticky cart bar respects safe-area inset above bottom nav.
+- Category chips scroll horizontally without breaking layout.
 
-### 1. POS product card — always show stock (`src/components/pos/ProductGrid.tsx`)
+**Issues**
+1. **Only 2 products visible above the fold.** The product card image is `w-24` (96px) and right-side padding is `p-3`, making each row ~110px tall. The header stack (title + buttons + search + chips) consumes ~280px before any product appears.
+2. **Redundant numeric badge.** Low-stock items show a corner number badge AND the inline "N in stock" pill — duplication.
+3. **Cart bar is tall** (`h-14` button + `p-3` wrapper ≈ 80px) and stacks with the 64px bottom nav, eating ~22% of viewport height.
+4. **Price/stock row gap** is wide; on narrow screens the `+` button can wrap awkwardly.
+5. **POS title row** ("Point of Sale" + Start-shift + Held) is non-essential vertical real estate on mobile.
 
-Currently the card only shows `×{stock_qty}` for items that are not low and not out, and only on `sm+` (hidden on mobile). The low-stock badge shows the number in the corner; out-of-stock shows "Out".
+## Proposed changes
 
-Update the card footer so every product shows its stock count on all viewports:
-- Add a small stock pill below or beside the price, e.g. `"{n} in stock"` (or `Out` when 0), visible on mobile and desktop.
-- Keep color cue: destructive when `out`, warning when `low`, muted otherwise.
-- Remove the duplicate corner low-stock badge OR keep it but ensure the inline label is always present.
+### `src/components/pos/ProductGrid.tsx`
+- Reduce mobile thumbnail to `w-20` (80px), padding to `p-2.5`.
+- Drop card min-height to `4.5rem` on mobile.
+- Remove the duplicate corner low-stock number badge (keep inline pill only, color-coded: warning when low, destructive when out).
+- Tighten the price/stock row with `gap-x-2 gap-y-1` and place the `+` button with `ml-auto`.
+- Result: ~3 products visible above the fold instead of 2.
 
-### 2. Prevent horizontal overflow globally
+### `src/pages/POS.tsx`
+- Hide the "Point of Sale" CardTitle on mobile (`hidden sm:block`); keep Start-shift / Held buttons.
+- Reduce mobile sticky cart bar wrapper from `p-3` to `px-3 py-2` and button from `h-14` to `h-12`.
+- Reduce search input height from `h-12` to `h-11` on mobile (keep `h-12` on `sm+`).
+- Trim category chip padding from `px-4 py-2` to `px-3 py-1.5` on mobile.
 
-- In `src/index.css`, add a safety rule on `html, body { overflow-x: hidden; max-width: 100%; }` and `#root { overflow-x: hidden; }` so no rogue child can cause page-level horizontal scroll.
-- In `src/pages/POS.tsx` outer container, add `overflow-x-hidden` and ensure the fixed mobile checkout bar uses `inset-x-0` (already does) without wider children. The grid `lg:grid-cols-[1fr_400px]` is fine because it only activates at `lg`.
-- Audit other pages for `min-w-[...]` / wide tables. Tables inside `overflow-x-auto` wrappers (e.g. Products desktop table) are scoped and acceptable — they scroll inside their card, not the page.
+### Files touched
+- `src/components/pos/ProductGrid.tsx`
+- `src/pages/POS.tsx`
 
-### 3. QA
-
-- Verify at 360px viewport (current device) that no page produces horizontal scroll.
-- Verify each POS product card shows the stock qty.
-
-## Files touched
-
-- `src/components/pos/ProductGrid.tsx` — show stock qty on every card.
-- `src/index.css` — add `overflow-x: hidden` safety net on `html`, `body`, `#root`.
-- `src/pages/POS.tsx` — add `overflow-x-hidden` to root container (defensive).
+Net effect: one extra product visible above the fold, less chrome, same touch-target comfort (all interactive elements remain ≥40px tall).
