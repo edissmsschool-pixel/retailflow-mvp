@@ -424,9 +424,9 @@ export default function POS() {
               <button
                 onClick={() => setCategoryId("all")}
                 className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95 sm:px-4 sm:py-2",
+                  "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition active:scale-95",
                   categoryId === "all"
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
                     : "border-border bg-card hover:border-primary/40"
                 )}
               >
@@ -437,9 +437,9 @@ export default function POS() {
                   key={c.id}
                   onClick={() => setCategoryId(c.id)}
                   className={cn(
-                    "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95 sm:px-4 sm:py-2",
+                    "shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition active:scale-95",
                     categoryId === c.id
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
                       : "border-border bg-card hover:border-primary/40"
                   )}
                 >
