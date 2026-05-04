@@ -395,7 +395,7 @@ export default function POS() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                  className="h-11 pl-10 text-base sm:h-12"
+                  className="h-12 pl-10 pr-10 text-base sm:h-12"
                   autoFocus
                 />
               </div>
