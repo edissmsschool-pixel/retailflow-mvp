@@ -67,19 +67,28 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                 </Badge>
               )}
             </div>
-            <div className="flex flex-1 flex-col justify-between gap-1 p-3">
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-3">
               <div className="line-clamp-2 text-sm font-medium leading-tight">{p.name}</div>
-              <div className="flex items-end justify-between gap-2">
+              <div className="flex flex-wrap items-end justify-between gap-2">
                 <span className="font-display text-base font-bold tabular-nums text-primary">
                   {formatNaira(p.sell_price_kobo)}
                 </span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground sm:hidden">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground sm:hidden">
                   <Plus className="h-4 w-4" />
                 </span>
-                {!low && !out && (
-                  <span className="hidden text-[10px] tabular-nums text-muted-foreground sm:inline">×{p.stock_qty}</span>
-                )}
               </div>
+              <Badge
+                variant="secondary"
+                className={
+                  out
+                    ? "w-fit bg-destructive/15 px-2 py-0 text-[10px] font-medium text-destructive"
+                    : low
+                      ? "w-fit bg-warning/15 px-2 py-0 text-[10px] font-medium text-warning-foreground"
+                      : "w-fit bg-muted px-2 py-0 text-[10px] font-medium text-muted-foreground"
+                }
+              >
+                {out ? "Out of stock" : `${p.stock_qty} in stock`}
+              </Badge>
             </div>
           </button>
         );
