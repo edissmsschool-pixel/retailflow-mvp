@@ -367,7 +367,7 @@ export default function POS() {
   );
 
   return (
-    <div className="container max-w-screen-2xl px-3 py-3 sm:px-4 sm:py-4">
+    <div className="container max-w-screen-2xl overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
       <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
         {/* ===== Products column ===== */}
         <Card className="shadow-card">

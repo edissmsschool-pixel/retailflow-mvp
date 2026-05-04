@@ -125,7 +125,7 @@
     background-attachment: fixed;
     font-feature-settings: "cv11", "ss01", "tnum";
   }
-  html, body, #root { min-height: 100%; }
+  html, body, #root { min-height: 100%; max-width: 100%; overflow-x: hidden; }
   /* iOS safe areas for bottom nav */
   body { padding-bottom: env(safe-area-inset-bottom); }
 }
