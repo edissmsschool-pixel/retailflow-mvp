@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { formatNaira } from "@/lib/money";
 import { Tables } from "@/integrations/supabase/types";
-import { Package, Plus } from "lucide-react";
+import { Package } from "lucide-react";
 
 type Product = Tables<"products">;
 
@@ -14,9 +14,9 @@ interface Props {
 export function ProductGrid({ products, loading, onAdd }: Props) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-2xl bg-muted sm:h-44" />
+          <div key={i} className="h-40 animate-pulse rounded-2xl bg-muted sm:h-44" />
         ))}
       </div>
     );
@@ -30,7 +30,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
       {products.map((p) => {
         const out = p.stock_qty <= 0;
         const low = !out && p.stock_qty <= p.reorder_level;
@@ -40,9 +40,9 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
             onClick={() => onAdd(p)}
             disabled={out}
             aria-label={`Add ${p.name} to cart`}
-            className="group relative flex min-h-[4.5rem] w-full flex-row items-stretch overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[12rem] sm:flex-col"
+            className="group relative flex w-full flex-col items-stretch overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <div className="relative aspect-square w-20 shrink-0 overflow-hidden bg-muted sm:w-full">
+            <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-muted">
               {p.image_url ? (
                 <img
                   src={p.image_url}
@@ -53,7 +53,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent/10 to-secondary">
-                  <Package className="h-7 w-7 text-muted-foreground/50" />
+                  <Package className="h-8 w-8 text-muted-foreground/50" />
                 </div>
               )}
               {out && (
@@ -61,29 +61,23 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                   <Badge variant="destructive" className="text-[10px]">Out</Badge>
                 </div>
               )}
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-2.5 sm:p-3">
-              <div className="line-clamp-2 text-[13px] font-medium leading-tight sm:text-sm">{p.name}</div>
-              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                <span className="font-display text-[15px] font-bold tabular-nums text-primary sm:text-base">
-                  {formatNaira(p.sell_price_kobo)}
-                </span>
+              {!out && (
                 <Badge
                   variant="secondary"
                   className={
-                    out
-                      ? "bg-destructive/15 px-1.5 py-0 text-[10px] font-medium text-destructive"
-                      : low
-                        ? "bg-warning/20 px-1.5 py-0 text-[10px] font-medium text-warning-foreground"
-                        : "bg-muted px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
+                    "absolute right-1.5 top-1.5 px-1.5 py-0 text-[10px] font-medium " +
+                    (low ? "bg-warning/90 text-warning-foreground" : "bg-background/85 text-muted-foreground")
                   }
                 >
-                  {out ? "Out" : `${p.stock_qty} in stock`}
+                  {p.stock_qty}
                 </Badge>
-                <span className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground sm:hidden">
-                  <Plus className="h-4 w-4" />
-                </span>
-              </div>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-2.5">
+              <div className="line-clamp-2 text-[13px] font-medium leading-tight sm:text-sm">{p.name}</div>
+              <span className="font-display text-[15px] font-bold tabular-nums text-primary sm:text-base">
+                {formatNaira(p.sell_price_kobo)}
+              </span>
             </div>
           </button>
         );
