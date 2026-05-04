@@ -464,7 +464,7 @@ export default function POS() {
         <Sheet open={showCart} onOpenChange={setShowCart}>
           <SheetTrigger asChild>
             <Button
-              className="h-14 w-full justify-between text-base font-semibold shadow-elevated"
+              className="h-12 w-full justify-between text-sm font-semibold shadow-elevated"
               disabled={!cart.length && itemCount === 0}
             >
               <span className="flex items-center gap-2">
