@@ -386,23 +386,33 @@ export default function POS() {
                 </Button>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="sticky top-0 z-10 -mx-4 flex gap-2 bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={searchRef}
-                  placeholder="Scan barcode or search by name / SKU…"
+                  placeholder="Scan or search products…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                  className="h-12 pl-10 pr-10 text-base sm:h-12"
+                  className="h-12 pl-10 pr-10 text-base"
                   autoFocus
                 />
+                {query && (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    onClick={() => { setQuery(""); searchRef.current?.focus(); }}
+                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-11 shrink-0 p-0 sm:h-12 sm:w-12"
+                className="h-12 w-12 shrink-0 p-0"
                 aria-label="Scan barcode with camera"
                 onClick={() => setShowScanner(true)}
               >
