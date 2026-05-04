@@ -373,8 +373,8 @@ export default function POS() {
         <Card className="shadow-card">
           <CardHeader className="space-y-3 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">Point of Sale</CardTitle>
-              <div className="flex items-center gap-2">
+              <CardTitle className="hidden text-base sm:block">Point of Sale</CardTitle>
+              <div className="ml-auto flex items-center gap-2">
                 {openShift.data ? (
                   <Badge variant="secondary" className="bg-success/10 text-success">Shift open</Badge>
                 ) : (
@@ -395,14 +395,14 @@ export default function POS() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                  className="h-12 pl-10 text-base"
+                  className="h-11 pl-10 text-base sm:h-12"
                   autoFocus
                 />
               </div>
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 w-12 shrink-0 p-0"
+                className="h-11 w-11 shrink-0 p-0 sm:h-12 sm:w-12"
                 aria-label="Scan barcode with camera"
                 onClick={() => setShowScanner(true)}
               >
