@@ -367,8 +367,8 @@ export default function POS() {
   );
 
   return (
-    <div className="container max-w-screen-2xl overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4">
-      <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
+    <div className="container max-w-screen-2xl overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 landscape:py-2">
+      <div className="grid gap-4 md:grid-cols-[1fr_340px] xl:grid-cols-[1fr_420px] landscape:gap-2">
         {/* ===== Products column ===== */}
         <Card className="shadow-card">
           <CardHeader className="space-y-3 pb-3">
@@ -386,7 +386,7 @@ export default function POS() {
                 </Button>
               </div>
             </div>
-            <div className="sticky top-0 z-10 -mx-4 flex gap-2 bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+            <div className="sticky top-0 z-10 -mx-4 flex gap-2 bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none landscape:py-1">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -395,7 +395,7 @@ export default function POS() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                  className="h-12 pl-10 pr-10 text-base"
+                  className="h-12 pl-10 pr-10 text-base landscape:h-10 landscape:text-sm"
                   autoFocus
                 />
                 {query && (
@@ -412,7 +412,7 @@ export default function POS() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 w-12 shrink-0 p-0"
+                className="h-12 w-12 shrink-0 p-0 landscape:h-10 landscape:w-10"
                 aria-label="Scan barcode with camera"
                 onClick={() => setShowScanner(true)}
               >
@@ -420,7 +420,7 @@ export default function POS() {
               </Button>
             </div>
             {/* Category chips */}
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden landscape:hidden sm:landscape:flex">
               <button
                 onClick={() => setCategoryId("all")}
                 className={cn(
@@ -448,8 +448,8 @@ export default function POS() {
               ))}
             </div>
           </CardHeader>
-          <CardContent className="pb-32 lg:pb-6">
-            <ScrollArea className="h-[calc(100vh-26rem)] lg:h-[calc(100vh-19rem)]">
+          <CardContent className="pb-32 md:pb-6">
+            <ScrollArea className="h-[calc(100dvh-22rem)] md:h-[calc(100dvh-16rem)] lg:h-[calc(100dvh-19rem)] landscape:h-[calc(100dvh-11rem)]">
               <div className="pr-2">
                 <ProductGrid
                   products={products.data}
@@ -461,8 +461,8 @@ export default function POS() {
           </CardContent>
         </Card>
 
-        {/* ===== Desktop cart panel ===== */}
-        <Card className="hidden h-[calc(100vh-6rem)] flex-col shadow-card lg:flex">
+        {/* ===== Desktop / tablet cart panel ===== */}
+        <Card className="hidden h-[calc(100dvh-6rem)] flex-col shadow-card md:flex">
           <CardContent className="flex flex-1 flex-col overflow-hidden p-4">
             {CartPanel}
           </CardContent>
@@ -470,7 +470,7 @@ export default function POS() {
       </div>
 
       {/* ===== Mobile sticky checkout bar (sits above bottom nav) ===== */}
-      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated lg:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
+      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated md:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
         <Sheet open={showCart} onOpenChange={setShowCart}>
           <SheetTrigger asChild>
             <Button

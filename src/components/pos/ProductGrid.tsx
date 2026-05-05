@@ -11,12 +11,15 @@ interface Props {
   onAdd: (p: Product) => void;
 }
 
+const GRID_CLASSES =
+  "grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 landscape:grid-cols-3 sm:landscape:grid-cols-4 md:landscape:grid-cols-3 lg:landscape:grid-cols-4 sm:gap-3";
+
 export function ProductGrid({ products, loading, onAdd }: Props) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-40 animate-pulse rounded-2xl bg-muted sm:h-44" />
+      <div className={GRID_CLASSES}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-36 animate-pulse rounded-2xl bg-muted sm:h-44" />
         ))}
       </div>
     );
@@ -30,7 +33,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4">
+    <div className={GRID_CLASSES}>
       {products.map((p) => {
         const out = p.stock_qty <= 0;
         const low = !out && p.stock_qty <= p.reorder_level;
@@ -42,7 +45,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
             aria-label={`Add ${p.name} to cart`}
             className="group relative flex w-full flex-col items-stretch overflow-hidden rounded-2xl border bg-card text-left shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-elevated active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-muted">
+            <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-muted landscape:aspect-[4/3]">
               {p.image_url ? (
                 <img
                   src={p.image_url}
@@ -73,7 +76,7 @@ export function ProductGrid({ products, loading, onAdd }: Props) {
                 </Badge>
               )}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-2.5">
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-2 sm:p-2.5 landscape:p-2">
               <div className="line-clamp-2 text-[13px] font-medium leading-tight sm:text-sm">{p.name}</div>
               <span className="font-display text-[15px] font-bold tabular-nums text-primary sm:text-base">
                 {formatNaira(p.sell_price_kobo)}

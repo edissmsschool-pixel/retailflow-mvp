@@ -200,7 +200,7 @@ function BottomNav({ visible }: { visible: NavItem[] }) {
   return (
     <nav
       aria-label="Primary mobile navigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 glass-strong lg:hidden safe-bottom"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 glass-strong md:hidden safe-bottom"
     >
       <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${safeItems.length}, minmax(0, 1fr))` }}>
         {safeItems.map((item) => {
