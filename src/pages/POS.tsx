@@ -386,7 +386,7 @@ export default function POS() {
                 </Button>
               </div>
             </div>
-            <div className="sticky top-0 z-10 -mx-4 flex gap-2 bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+            <div className="sticky top-0 z-10 -mx-4 flex gap-2 bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none landscape:py-1">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -395,7 +395,7 @@ export default function POS() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchEnter(); } }}
-                  className="h-12 pl-10 pr-10 text-base"
+                  className="h-12 pl-10 pr-10 text-base landscape:h-10 landscape:text-sm"
                   autoFocus
                 />
                 {query && (
@@ -412,7 +412,7 @@ export default function POS() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 w-12 shrink-0 p-0"
+                className="h-12 w-12 shrink-0 p-0 landscape:h-10 landscape:w-10"
                 aria-label="Scan barcode with camera"
                 onClick={() => setShowScanner(true)}
               >
