@@ -448,8 +448,8 @@ export default function POS() {
               ))}
             </div>
           </CardHeader>
-          <CardContent className="pb-32 lg:pb-6">
-            <ScrollArea className="h-[calc(100vh-26rem)] lg:h-[calc(100vh-19rem)]">
+          <CardContent className="pb-32 md:pb-6">
+            <ScrollArea className="h-[calc(100dvh-22rem)] md:h-[calc(100dvh-16rem)] lg:h-[calc(100dvh-19rem)] landscape:h-[calc(100dvh-11rem)]">
               <div className="pr-2">
                 <ProductGrid
                   products={products.data}
@@ -461,8 +461,8 @@ export default function POS() {
           </CardContent>
         </Card>
 
-        {/* ===== Desktop cart panel ===== */}
-        <Card className="hidden h-[calc(100vh-6rem)] flex-col shadow-card lg:flex">
+        {/* ===== Desktop / tablet cart panel ===== */}
+        <Card className="hidden h-[calc(100dvh-6rem)] flex-col shadow-card md:flex">
           <CardContent className="flex flex-1 flex-col overflow-hidden p-4">
             {CartPanel}
           </CardContent>
