@@ -420,7 +420,7 @@ export default function POS() {
               </Button>
             </div>
             {/* Category chips */}
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden landscape:hidden sm:landscape:flex">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
                 onClick={() => setCategoryId("all")}
                 className={cn(
@@ -470,7 +470,7 @@ export default function POS() {
       </div>
 
       {/* ===== Mobile sticky checkout bar (sits above bottom nav) ===== */}
-      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated md:hidden" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated md:hidden landscape:bottom-[env(safe-area-inset-bottom)]">
         <Sheet open={showCart} onOpenChange={setShowCart}>
           <SheetTrigger asChild>
             <Button
