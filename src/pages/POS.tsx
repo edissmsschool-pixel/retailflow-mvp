@@ -470,7 +470,7 @@ export default function POS() {
       </div>
 
       {/* ===== Mobile sticky checkout bar (sits above bottom nav) ===== */}
-      <div className="fixed inset-x-0 z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated md:hidden landscape:bottom-0 landscape:pb-[env(safe-area-inset-bottom)]" style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}>
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 glass-strong px-3 py-2 shadow-elevated md:hidden landscape:bottom-[env(safe-area-inset-bottom)]">
         <Sheet open={showCart} onOpenChange={setShowCart}>
           <SheetTrigger asChild>
             <Button
