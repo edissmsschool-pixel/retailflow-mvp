@@ -53,6 +53,29 @@ export default function Auth() {
     else toast.success("Account created. You're signed in.");
   }
 
+  async function handleGoogle() {
+    setBusy(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setBusy(false);
+      toast.error(result.error.message || "Google sign-in failed");
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!signInData.email) {
+      toast.error("Enter your email first");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(signInData.email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    if (error) toast.error(error.message);
+    else toast.success("Password reset email sent");
+  }
+
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
       {/* Decorative gradient blobs */}
