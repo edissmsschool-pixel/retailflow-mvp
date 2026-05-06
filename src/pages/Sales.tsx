@@ -121,15 +121,15 @@ export default function Sales() {
   };
 
   return (
-    <div className="container py-6">
+    <div className="container px-3 py-4 sm:px-6 sm:py-6">
       <PageHeader title="Sales History" description="Review, reprint, refund or void past transactions."
-        actions={<Button variant="outline" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Export CSV</Button>} />
+        actions={<Button variant="outline" className="w-full sm:w-auto" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Export CSV</Button>} />
 
       <Card className="shadow-card">
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-wrap gap-2">
+        <CardContent className="space-y-4 p-3 sm:p-4">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Select value={range} onValueChange={(v) => setRange(v as typeof range)}>
-              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 sm:w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="7d">Last 7 days</SelectItem>
@@ -138,7 +138,7 @@ export default function Sales() {
               </SelectContent>
             </Select>
             <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Payment" /></SelectTrigger>
+              <SelectTrigger className="h-10 sm:w-40"><SelectValue placeholder="Payment" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All payment</SelectItem>
                 <SelectItem value="cash">Cash</SelectItem>
@@ -147,7 +147,7 @@ export default function Sales() {
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="col-span-2 h-10 sm:w-44"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All status</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -158,7 +158,38 @@ export default function Sales() {
             </Select>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="space-y-2 md:hidden">
+            {sales.data?.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => { setOpen(s.id); setRefundQuantities({}); }}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card p-3 text-left shadow-sm active:scale-[0.99]"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <span className="font-mono">#{s.sale_number}</span>
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {fmtDateTime(s.created_at)} • {s.profiles?.full_name ?? "—"}
+                  </div>
+                  <div className="mt-0.5 text-xs capitalize text-muted-foreground">
+                    {s.payment_method.replace("_", " ")}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-display text-base font-bold tabular-nums">{formatNaira(s.total_kobo)}</div>
+                </div>
+              </button>
+            ))}
+            {sales.data?.length === 0 && (
+              <div className="py-8 text-center text-sm text-muted-foreground">No sales found.</div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
