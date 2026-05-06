@@ -224,15 +224,15 @@ export default function Sales() {
       </Card>
 
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>Sale #{detail.data?.sale?.sale_number}</DialogTitle></DialogHeader>
           {receiptData && <Receipt data={receiptData} />}
           <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" onClick={() => receiptData && import("@/lib/print").then((m) => m.printReceiptSilent(receiptData))}><Printer className="mr-2 h-4 w-4" />Print</Button>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => receiptData && import("@/lib/print").then((m) => m.printReceiptSilent(receiptData))}><Printer className="mr-2 h-4 w-4" />Print</Button>
             {isManagerOrAdmin && detail.data?.sale && detail.data.sale.status !== "voided" && detail.data.sale.status !== "refunded" && (
               <>
-                <Button variant="outline" onClick={() => setRefundOpen(true)}><RotateCcw className="mr-2 h-4 w-4" />Refund</Button>
-                <Button variant="destructive" onClick={doVoid}><XCircle className="mr-2 h-4 w-4" />Void</Button>
+                <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setRefundOpen(true)}><RotateCcw className="mr-2 h-4 w-4" />Refund</Button>
+                <Button variant="destructive" className="flex-1 sm:flex-none" onClick={doVoid}><XCircle className="mr-2 h-4 w-4" />Void</Button>
               </>
             )}
           </DialogFooter>
@@ -240,7 +240,7 @@ export default function Sales() {
       </Dialog>
 
       <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>Refund items</DialogTitle></DialogHeader>
           <div className="space-y-2">
             {detail.data?.items.map((it) => {
