@@ -1,107 +1,71 @@
-# POS Landscape Optimization + Feature Audit
+# Plan: UI Polish, Admin Controls, and Bug Sweep
 
-## Part 1 — POS: True multi-orientation responsive layout
+## 1. UI/UX polish & responsiveness (no redesign)
 
-The current POS is optimized for portrait phones and large desktops, but breaks down in two cases:
+Apply a consistent set of fixes across all pages. Patterns:
 
-- **Landscape phones (e.g. 740×360):** the sticky search + categories + sticky bottom cart bar + bottom nav consume nearly all vertical space, leaving ~1 row of products visible.
-- **Small tablets in portrait (768–1024):** still uses the single-column mobile layout instead of revealing the side cart.
-- **Tablet landscape (1024+):** already shows the side cart; needs minor polish.
+- **Containers**: standardize `container px-3 py-4 sm:px-6 sm:py-6` everywhere (Sales, Reports, Shifts, Staff, Settings, Products, Dashboard).
+- **Tables → cards on mobile**: in `Sales`, `Staff`, `Shifts`, `Products`, wrap `<Table>` in `hidden md:block` and add a mobile `space-y-2` card list rendering the same rows for `<md`.
+- **Sticky page actions**: page-level primary buttons (Add staff, Add product, Export) become full-width on mobile and pinned to the page header row.
+- **Touch targets**: bump interactive controls to `h-11`/`h-12` on mobile, increase tap area on icon buttons to `h-10 w-10`.
+- **Headers**: `PageHeader` actions stack vertically on `<sm`, with `flex-wrap gap-2`.
+- **Dialogs**: ensure `max-h-[90dvh] overflow-y-auto` and `w-[calc(100vw-1.5rem)]` on small screens for `PaymentDialog`, `ReceiptDialog`, `ImportDialog`, Staff add, etc.
+- **Landscape phones**: keep existing `landscape:` POS work; extend the same pattern (compact headers, `100dvh`) to Shifts close-out and Receipt dialogs.
+- **Tablet (md)**: ensure two-column layouts kick in at `md` for Dashboard chart row, Products list+filters, Reports filters+chart.
+- **Bottom nav clearance**: every page's main scroll container honors `pb-nav` already set on `<main>`; verify no page content gets hidden behind the bar.
+- **Charts**: wrap recharts containers with `min-h-[220px]` and ensure parent `h-64` collapses gracefully on narrow widths.
+- **Empty/loading states**: add lightweight skeletons or "No data" rows where currently blank (Sales table, Reports, Shifts list, Staff list).
 
-### Changes in `src/pages/POS.tsx`
+No new design tokens — uses existing semantic tokens and Tailwind utilities.
 
-1. **Orientation-aware layout switch.** Use a `landscape:` Tailwind variant + `useIsMobile`-style media query so that on short viewports (`max-height: 500px`) the layout collapses the sticky search/categories into a single compact row and reduces vertical paddings (`py-1`, `h-10` inputs, `h-10` cart bar, `gap-1.5`).
-2. **Reveal the side cart earlier.** Change the grid breakpoint from `lg:grid-cols-[1fr_400px]` to `md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]` so iPads and landscape tablets show the cart inline instead of as a bottom sheet. Hide the sticky mobile checkout bar from `md:` upward (currently `lg:hidden`).
-3. **Scrollable product area sized by `dvh`.** Replace `h-[calc(100vh-26rem)]` with `h-[calc(100dvh-22rem)] landscape:h-[calc(100dvh-12rem)] md:h-[calc(100dvh-15rem)]` so the product grid always fills the remaining space without overflow on rotation.
-4. **Sticky search/category collapse.** Wrap the category chips in a `landscape:hidden sm:flex` container with a "Filters" pill that opens a small Popover when hidden, so landscape phone users still get categories without losing rows.
-5. **Bottom nav clearance.** Use the existing `pb-nav` utility plus `env(safe-area-inset-bottom)` on the sticky cart bar instead of the hard-coded `bottom: calc(4rem + …)` so it adapts to landscape (where bottom nav is hidden via `lg:hidden` already — hide the cart bar too when md+).
-6. **Touch density.** Keep all primary touch targets ≥ 44px; in landscape allow dense mode (40px) for secondary buttons only.
+## 2. Admin: user deletion (soft + hard) + signup toggle
 
-### Changes in `src/components/pos/ProductGrid.tsx`
+### Staff page (`src/pages/Staff.tsx`)
+Per-row action menu (DropdownMenu) with:
+- **Deactivate / Reactivate** (existing `profiles.active` toggle).
+- **Delete permanently** — confirms via `AlertDialog`, calls a new edge function `admin-delete-user` with `{ user_id }`. Disallowed for self.
 
-- Adjust grid: `grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 landscape:grid-cols-3 landscape:sm:grid-cols-4`.
-- In `landscape:` reduce thumbnail to `aspect-[4/3]` and card padding to `p-2` so 2 rows fit on a 360px-tall phone.
+### New edge function `admin-delete-user`
+- Verifies caller JWT and `has_role(admin)`.
+- Refuses if `user_id === caller.id` or if it's the last admin.
+- Uses service role: deletes from `user_roles`, `push_subscriptions`, `profiles`, then `auth.admin.deleteUser(user_id)`.
+- Sales/shifts history is preserved (cashier_id becomes orphan UUID — acceptable per your choice).
 
-### Changes in `src/components/pos/CartList.tsx` & `CartSummary.tsx`
+### Settings → Auth controls (admin only)
+New card in `src/pages/Settings.tsx`:
+- **Public sign-ups** switch. Calls a new edge function `admin-set-auth-config` that uses the Cloud Management API to set `disable_signup`. Reads current value on mount.
+- **Leaked-password protection (HIBP)** switch (free win, same endpoint).
+- Auth page (`src/pages/Auth.tsx`) hides the "Create account" tab when an unauthenticated probe (`signUp` with throwaway returns "Signups not allowed") indicates disabled — simpler: fetch a small public flag from a new `public_auth_config` view exposed by an edge function `get-auth-config` (no secrets).
 
-- Drop the per-line "Line discount" input behind a small "Add discount" toggle — it currently bloats every row on mobile.
-- Make the qty stepper compact (`h-9 w-9`) on landscape.
-- Combine Items/Subtotal/Discount into a single 2-column row on `landscape:` to save vertical space.
+### Migration
+None required for tables. Add a `prevent_last_admin_delete` constraint via trigger on `user_roles` that raises if removing the last admin role.
 
-### Acceptance check (visual)
+## 3. Bug sweep — critical flows + console/network audit
 
-- 360×800 portrait phone: 4 products visible, sticky bar pinned, cart drawer opens smoothly.
-- 740×360 landscape phone: search + categories collapsed into one row, ≥ 6 products visible (2 rows of 3), sticky cart bar still tappable.
-- 820×1180 iPad portrait: side cart visible (no bottom sheet).
-- 1366×768 desktop: unchanged from current good layout.
+Run through:
+- **Auth**: email sign-in, Google OAuth, forgot-password email send, signup gated by toggle.
+- **POS**: start shift (with denomination), search, scan, add to cart, line discount, hold + recall, checkout (cash + non-cash), receipt dialog open + print.
+- **Shifts**: list, close shift with denomination counter, Z-report renders.
+- **Sales**: list, filter, refund partial + full, void, CSV export.
+- **Products**: create, edit, image upload, import, low-stock filter, stock adjust.
+- **Reports**: load all date ranges without 1000-row truncation surprises.
+- **Settings**: logo upload, push toggle, store info save, new auth toggles.
+- **Staff**: add, role change, deactivate, delete (new).
 
----
+For each, use the browser tool at 360px and 1024px, capture console + network errors, fix any 4xx/5xx or runtime errors found.
 
-## Part 2 — Cross-page feature audit and gap fill
+## Technical details
 
-Review of the 9 routes (`Dashboard`, `POS`, `Products`, `Sales`, `Reports`, `Shifts`, `Staff`, `Settings`, `Auth`). Below is what looks present vs. missing/broken based on the current files. I will fix the **High** items and confirm the **Medium** ones with you before doing them.
+**Files to edit**
+- Layouts/responsive polish: `src/pages/Sales.tsx`, `Reports.tsx`, `Shifts.tsx`, `Staff.tsx`, `Products.tsx`, `Dashboard.tsx`, `Settings.tsx`; `src/components/PageHeader.tsx`; `src/components/pos/PaymentDialog.tsx`, `ReceiptDialog.tsx`; `src/components/products/ImportDialog.tsx`; `src/components/shifts/ZReport.tsx`, `DenominationCounter.tsx`.
+- Admin controls: `src/pages/Staff.tsx`, `src/pages/Settings.tsx`, `src/pages/Auth.tsx`.
+- New: `supabase/functions/admin-delete-user/index.ts`, `supabase/functions/admin-set-auth-config/index.ts`, `supabase/functions/get-auth-config/index.ts`.
+- Migration: trigger to prevent removing last admin.
 
-### POS — High
-- Held-sales **search** + ability to **edit** before recall (currently delete-only).
-- Wire keyboard shortcuts: `F2` focus search, `F4` open payment, `Esc` close drawers.
-- Show **shift status** (opened time + sales count) in the header chip; clicking it opens shift summary.
+**Edge function security**
+All three new functions: validate JWT in code, check `has_role(admin)`, return CORS headers, validate input with zod-style guards.
 
-### Products — High / Medium
-- Confirm **bulk image upload** + **CSV import** path (`ImportDialog` + `ImageUploader` exist) — verify error toasts and progress.
-- Add **low-stock filter** chip and **sort by stock** toggle.
-- Inline **stock adjust** modal calling `adjust-stock` edge function (exists) — verify it's reachable from the row.
-
-### Sales — High
-- **Refund / void** flow buttons should call `refund-sale` and `void-sale` edge functions; verify role gating.
-- Add **date range filter** + CSV export (`src/lib/csv.ts` already exists).
-- Receipt re-print from row.
-
-### Reports — Medium
-- Verify date-range, payment-method breakdown, top products, and cashier performance widgets render with empty-state.
-- Add CSV export per chart.
-
-### Shifts — High
-- **Close shift** flow with `DenominationCounter` + variance, calling `close-shift` edge function. `ZReport` component exists — wire a "Print Z-report" button.
-- Manager view: list all open shifts with force-close.
-
-### Staff — Medium
-- Create staff via `admin-create-staff` edge function (exists). Verify role assignment UI writes to `user_roles`.
-- Toggle active / reset password.
-
-### Settings — Medium
-- Store profile (name, address, phone, logo, receipt footer) — verify persists to `store_settings`.
-- Multi-store switcher via `StoresManager` — verify `useActiveStore` selection.
-- Idle lock settings (`IdleLockSettings`) — verify timeout persists.
-- Push notifications enable button calling `register-push` edge function.
-
-### Auth — High
-- Confirm email/password login + Google OAuth button present (per project rules: "Add google authentication unless user explicitly asks to not"). If missing, add Google sign-in.
-- Forgot-password link.
-
-### Cross-cutting — High
-- Replace any `100vh` with `100dvh` on full-height screens (mobile browser chrome bug).
-- Ensure every page has the `pb-nav` bottom padding so the bottom nav doesn't cover content.
-- Hook up `OfflineBanner` action — verify SW (`public/sw.js`) caches POS and Products lists for offline reads.
-
----
-
-## Suggested execution order
-
-1. POS landscape + tablet layout (Part 1) — single PR.
-2. POS feature polish (held search, shortcuts, shift chip).
-3. Sales refund/void/export.
-4. Shifts close-flow + Z-report.
-5. Products low-stock filter + stock adjust.
-6. Auth Google + forgot password.
-7. Settings/Staff polish.
-
-## Decision needed before I start
-
-Part 1 is uncontroversial — I will implement it as described.
-
-For Part 2, please confirm:
-- **A.** Implement all "High" items now in one pass (POS shortcuts, Sales refund/void/export, Shifts close + Z-report, Auth Google).
-- **B.** Only implement POS-related Highs now; queue the rest.
-- **C.** Different scope (tell me which).
-
-If you don't reply, I'll proceed with **A**.
+**Out of scope**
+- No visual redesign / new design tokens.
+- No changes to business logic (checkout, refund, shift math).
+- No new features beyond the three asked for.

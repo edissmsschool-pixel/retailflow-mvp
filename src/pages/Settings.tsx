@@ -9,16 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Bell, Loader2, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Bell, Loader2, Upload, Trash2, ImageIcon, ShieldCheck } from "lucide-react";
 import { pushSupported, getCurrentSubscription, enablePush, disablePush } from "@/lib/push";
 import { StoresManager } from "@/components/settings/StoresManager";
 import { IdleLockSettings } from "@/components/settings/IdleLockSettings";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Settings() {
-  const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "", logo_url: "" });
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("admin");
+  const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "", logo_url: "", signups_enabled: true });
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [savingSignups, setSavingSignups] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const supported = pushSupported();
 
@@ -38,6 +42,7 @@ export default function Settings() {
         phone: settings.data.phone ?? "",
         receipt_footer: settings.data.receipt_footer ?? "",
         logo_url: settings.data.logo_url ?? "",
+        signups_enabled: (settings.data as { signups_enabled?: boolean }).signups_enabled ?? true,
       });
     }
   }, [settings.data]);
@@ -190,6 +195,41 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      {isAdmin && (
+        <Card className="mt-6 shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheck className="h-4 w-4" /> Authentication
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Allow public sign-ups</p>
+                <p className="text-xs text-muted-foreground">
+                  When off, the &ldquo;Create account&rdquo; tab is hidden on the sign-in page and new self-signups are blocked. Admins can still create staff from the Staff page.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {savingSignups && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Switch
+                  checked={form.signups_enabled}
+                  disabled={savingSignups}
+                  onCheckedChange={async (v) => {
+                    setSavingSignups(true);
+                    const { error } = await supabase.from("store_settings").update({ signups_enabled: v }).eq("id", 1);
+                    setSavingSignups(false);
+                    if (error) return toast.error(error.message);
+                    setForm((f) => ({ ...f, signups_enabled: v }));
+                    toast.success(v ? "Public sign-ups enabled" : "Public sign-ups disabled");
+                  }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-6">
         <StoresManager />

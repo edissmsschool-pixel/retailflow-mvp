@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,15 @@ export default function Auth() {
   const { session, loading } = useAuth();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
+  const [signupsEnabled, setSignupsEnabled] = useState(true);
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", full_name: "" });
+
+  useEffect(() => {
+    supabase.rpc("get_signups_enabled").then(({ data }) => {
+      if (typeof data === "boolean") setSignupsEnabled(data);
+    });
+  }, []);
 
   if (loading) return null;
   if (session) {
@@ -110,9 +117,9 @@ export default function Auth() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={`grid w-full ${signupsEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
                 <TabsTrigger value="signin">Sign in</TabsTrigger>
-                <TabsTrigger value="signup">Create account</TabsTrigger>
+                {signupsEnabled && <TabsTrigger value="signup">Create account</TabsTrigger>}
               </TabsList>
               <TabsContent value="signin" className="mt-4">
                 <form onSubmit={handleSignIn} className="space-y-3">
@@ -166,7 +173,7 @@ export default function Auth() {
                   </Button>
                 </form>
               </TabsContent>
-              <TabsContent value="signup" className="mt-4">
+              {signupsEnabled && <TabsContent value="signup" className="mt-4">
                 <form onSubmit={handleSignUp} className="space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="su-name">Full name</Label>
@@ -201,7 +208,7 @@ export default function Auth() {
                     {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create account
                   </Button>
                 </form>
-              </TabsContent>
+              </TabsContent>}
             </Tabs>
           </CardContent>
         </Card>

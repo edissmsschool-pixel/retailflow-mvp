@@ -426,6 +426,7 @@ export type Database = {
           logo_url: string | null
           phone: string | null
           receipt_footer: string | null
+          signups_enabled: boolean
           store_name: string
           updated_at: string
         }
@@ -435,6 +436,7 @@ export type Database = {
           logo_url?: string | null
           phone?: string | null
           receipt_footer?: string | null
+          signups_enabled?: boolean
           store_name?: string
           updated_at?: string
         }
@@ -444,6 +446,7 @@ export type Database = {
           logo_url?: string | null
           phone?: string | null
           receipt_footer?: string | null
+          signups_enabled?: boolean
           store_name?: string
           updated_at?: string
         }
@@ -543,6 +546,7 @@ export type Database = {
             }
             Returns: undefined
           }
+      get_signups_enabled: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
