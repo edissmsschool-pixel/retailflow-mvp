@@ -173,7 +173,7 @@ export default function Auth() {
                   </Button>
                 </form>
               </TabsContent>
-              <TabsContent value="signup" className="mt-4">
+              {signupsEnabled && <TabsContent value="signup" className="mt-4">
                 <form onSubmit={handleSignUp} className="space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="su-name">Full name</Label>
@@ -208,7 +208,7 @@ export default function Auth() {
                     {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create account
                   </Button>
                 </form>
-              </TabsContent>
+              </TabsContent>}
             </Tabs>
           </CardContent>
         </Card>
