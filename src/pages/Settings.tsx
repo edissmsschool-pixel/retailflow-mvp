@@ -9,16 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Bell, Loader2, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Bell, Loader2, Upload, Trash2, ImageIcon, ShieldCheck } from "lucide-react";
 import { pushSupported, getCurrentSubscription, enablePush, disablePush } from "@/lib/push";
 import { StoresManager } from "@/components/settings/StoresManager";
 import { IdleLockSettings } from "@/components/settings/IdleLockSettings";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Settings() {
-  const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "", logo_url: "" });
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("admin");
+  const [form, setForm] = useState({ store_name: "", address: "", phone: "", receipt_footer: "", logo_url: "", signups_enabled: true });
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [savingSignups, setSavingSignups] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const supported = pushSupported();
 
