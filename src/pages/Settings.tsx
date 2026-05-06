@@ -42,6 +42,7 @@ export default function Settings() {
         phone: settings.data.phone ?? "",
         receipt_footer: settings.data.receipt_footer ?? "",
         logo_url: settings.data.logo_url ?? "",
+        signups_enabled: (settings.data as { signups_enabled?: boolean }).signups_enabled ?? true,
       });
     }
   }, [settings.data]);
