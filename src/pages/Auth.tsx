@@ -117,9 +117,9 @@ export default function Auth() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={`grid w-full ${signupsEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
                 <TabsTrigger value="signin">Sign in</TabsTrigger>
-                <TabsTrigger value="signup">Create account</TabsTrigger>
+                {signupsEnabled && <TabsTrigger value="signup">Create account</TabsTrigger>}
               </TabsList>
               <TabsContent value="signin" className="mt-4">
                 <form onSubmit={handleSignIn} className="space-y-3">
