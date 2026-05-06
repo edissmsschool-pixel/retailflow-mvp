@@ -15,8 +15,15 @@ export default function Auth() {
   const { session, loading } = useAuth();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
+  const [signupsEnabled, setSignupsEnabled] = useState(true);
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", full_name: "" });
+
+  useState(() => {
+    supabase.rpc("get_signups_enabled").then(({ data }) => {
+      if (typeof data === "boolean") setSignupsEnabled(data);
+    });
+  });
 
   if (loading) return null;
   if (session) {
