@@ -152,7 +152,50 @@ export default function Shifts() {
       <PageHeader title="Shifts" description="Cash reconciliation, end-of-day Z-reports and variance log." />
       <Card className="shadow-card">
         <CardContent className="p-3 sm:p-4">
-          <div className="overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="space-y-2 md:hidden">
+            {shifts.data?.map((s) => (
+              <div key={s.id} className="rounded-xl border bg-card p-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold">{s.profiles?.full_name ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">Opened {fmtDateTime(s.opened_at)}</div>
+                    {s.closed_at && <div className="text-xs text-muted-foreground">Closed {fmtDateTime(s.closed_at)}</div>}
+                  </div>
+                  {s.status === "open" ? <Badge variant="secondary">Open</Badge> : <Badge>Closed</Badge>}
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Float:</span> <span className="tabular-nums">{formatNaira(s.opening_float_kobo)}</span></div>
+                  <div><span className="text-muted-foreground">Expected:</span> <span className="tabular-nums">{s.expected_cash_kobo != null ? formatNaira(s.expected_cash_kobo) : "—"}</span></div>
+                  <div><span className="text-muted-foreground">Counted:</span> <span className="tabular-nums">{s.counted_cash_kobo != null ? formatNaira(s.counted_cash_kobo) : "—"}</span></div>
+                  <div>
+                    <span className="text-muted-foreground">Variance:</span>{" "}
+                    {s.variance_kobo != null ? (
+                      <span className={`tabular-nums ${s.variance_kobo === 0 ? "" : s.variance_kobo > 0 ? "text-success" : "text-destructive"}`}>
+                        {s.variance_kobo > 0 ? "+" : ""}{formatNaira(s.variance_kobo)}
+                      </span>
+                    ) : "—"}
+                  </div>
+                </div>
+                <div className="mt-2">
+                  {s.status === "open" && (s.cashier_id === user?.id || isManagerOrAdmin) && (
+                    <Button size="sm" className="w-full" onClick={() => startClose(s)}><Lock className="mr-1.5 h-4 w-4" />Close shift</Button>
+                  )}
+                  {s.status === "closed" && (
+                    <Button size="sm" variant="outline" className="w-full" onClick={() => reprintZ(s)}>
+                      <Printer className="mr-1.5 h-4 w-4" />Reprint Z-report
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {shifts.data?.length === 0 && (
+              <div className="py-8 text-center text-sm text-muted-foreground">No shifts yet. Start one from the POS.</div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
