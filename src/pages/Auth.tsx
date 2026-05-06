@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,11 +19,11 @@ export default function Auth() {
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({ email: "", password: "", full_name: "" });
 
-  useState(() => {
+  useEffect(() => {
     supabase.rpc("get_signups_enabled").then(({ data }) => {
       if (typeof data === "boolean") setSignupsEnabled(data);
     });
-  });
+  }, []);
 
   if (loading) return null;
   if (session) {
